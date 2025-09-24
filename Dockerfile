@@ -1,5 +1,4 @@
 # Multi-stage build for PromptOptimizer Vite React app
-
 # Stage 1: Build the application
 FROM node:18-alpine AS builder
 
@@ -9,8 +8,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (using npm install since there's no package-lock.json)
+RUN npm install
 
 # Copy source code
 COPY . .
