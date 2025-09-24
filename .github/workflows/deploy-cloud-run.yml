@@ -1,0 +1,110 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: us-central1
+  SERVICE_NAME: promptoptimizer
+  IMAGE_NAME: gcr.io/${{ secrets.GCP_PROJECT_ID }}/promptoptimizer
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build application
+      run: npm run build
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Configure Docker to use gcloud as credential helper
+      run: |
+        gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+        docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.IMAGE_NAME }}:latest
+
+    - name: Push Docker image to Google Container Registry
+      run: |
+        docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.IMAGE_NAME }}:latest
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image=${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --platform=managed \
+          --region=${{ env.REGION }} \
+          --allow-unauthenticated \
+          --port=80 \
+          --memory=512Mi \
+          --cpu=1000m \
+          --max-instances=10 \
+          --min-instances=0 \
+          --concurrency=80 \
+          --timeout=300
+
+    - name: Get service URL
+      id: service-url
+      run: |
+        URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --platform=managed \
+          --region=${{ env.REGION }} \
+          --format='value(status.url)')
+        echo "url=$URL" >> $GITHUB_OUTPUT
+        echo "Service deployed at: $URL"
+
+    - name: Update README with service URL
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      run: |
+        if [ -f README.md ]; then
+          # Create or update deployment section in README
+          if grep -q "## Deployment" README.md; then
+            # Update existing deployment section
+            sed -i "/## Deployment/,/^## /c\\n## Deployment\n\nThe application is automatically deployed to Google Cloud Run on every push to the main branch.\n\n🚀 **Live Application**: [${{ steps.service-url.outputs.url }}](${{ steps.service-url.outputs.url }})\n\nLast deployed: $(date -u '+%Y-%m-%d %H:%M:%S UTC') - Commit: ${{ github.sha }}\n" README.md
+          else
+            # Add new deployment section before existing sections
+            echo -e "\n## Deployment\n\nThe application is automatically deployed to Google Cloud Run on every push to the main branch.\n\n🚀 **Live Application**: [${{ steps.service-url.outputs.url }}](${{ steps.service-url.outputs.url }})\n\nLast deployed: $(date -u '+%Y-%m-%d %H:%M:%S UTC') - Commit: ${{ github.sha }}\n" >> README.md
+          fi
+        fi
+
+    - name: Commit README changes
+      if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add README.md
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update deployment URL in README [skip ci]"
+          git push
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
