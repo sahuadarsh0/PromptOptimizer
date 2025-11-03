@@ -28,3 +28,20 @@
         transform: translate(30vw, 30vh);
     }
 }
+
+/* New styles for listening indicator */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.4);
+    border-color: #06b6d4; /* A slightly darker cyan */
+  }
+  50% {
+    box-shadow: 0 0 12px 3px rgba(34, 211, 238, 0.7);
+    border-color: #22d3ee; /* A brighter cyan */
+  }
+}
+
+textarea.listening {
+  animation: pulse-glow 2s infinite ease-in-out;
+  border-color: #06b6d4; /* Initial border color */
+}

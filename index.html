@@ -13,9 +13,8 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-zinc-900 text-white font-sans flex items-center justify-center min-h-screen p-4">
+<body class="bg-zinc-900 text-white font-sans flex justify-center items-start sm:items-center min-h-screen p-4">
   <div id="particle-container"></div>
 
   <main class="relative z-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl space-y-6">
@@ -34,20 +33,18 @@
 
     <!-- Configuration Section -->
     <section id="config-section" class="bg-zinc-900/50 border border-zinc-700 p-4 rounded-xl space-y-4">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
              <h2 class="text-lg font-semibold text-zinc-200">Configuration</h2>
-             <div class="relative group">
+             <div class="relative group sm:w-64">
                 <label for="model-select" class="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1">
                   Model
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </label>
                  <div class="absolute bottom-full right-0 mb-2 w-72 p-2 bg-zinc-700 text-zinc-200 text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Choose the Gemini model for optimization. 'Flash' models are known for speed and efficiency.
+                    Choose the Gemini model for optimization. Models are loaded dynamically.
                 </div>
-                <select id="model-select" class="w-full bg-zinc-800 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
-                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
-                    <option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option>
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <select id="model-select" class="w-full bg-zinc-800 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50" disabled>
+                    <option>Loading models...</option>
                 </select>
             </div>
         </div>
@@ -134,9 +131,38 @@
     <div class="space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Input Column -->
-        <div class="flex flex-col space-y-3">
-          <label for="input-prompt" class="text-lg font-semibold text-zinc-300">Your Prompt</label>
-          <textarea id="input-prompt" rows="12" class="bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-shadow resize-none" placeholder="e.g., a cat wearing a hat"></textarea>
+        <div class="space-y-4">
+            <div>
+                 <div class="flex justify-between items-center mb-3">
+                    <label for="input-prompt" class="text-lg font-semibold text-zinc-300">Your Prompt</label>
+                    <div class="flex items-center gap-2">
+                        <!-- Translating Loader -->
+                        <div id="translating-loader" class="hidden">
+                            <svg class="animate-spin h-5 w-5 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </div>
+                        <button id="mic-button" class="p-2 rounded-full transition-colors bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Start Recording" title="Start Recording">
+                            <!-- Mic Icon (default) -->
+                            <svg id="mic-icon" class="text-zinc-300" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="22"></line>
+                            </svg>
+                            <!-- Stop Icon (hidden by default) -->
+                             <svg id="stop-mic-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="hidden text-red-400">
+                               <rect width="12" height="12" x="6" y="6" rx="1"></rect>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <textarea id="input-prompt" class="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-shadow resize-none" placeholder="e.g., a cat wearing a hat"></textarea>
+            </div>
+            <div>
+                <label for="negative-prompt" class="text-base font-semibold text-zinc-300 mb-2">Negative Prompt <span class="text-sm text-zinc-400 font-normal">(what to avoid)</span></label>
+                <textarea id="negative-prompt" class="w-full h-24 bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-shadow resize-none" placeholder="e.g., blurry, ugly, text, watermark"></textarea>
+            </div>
         </div>
 
         <!-- Output Column -->
@@ -148,8 +174,8 @@
               <span id="copy-button-text">Copy</span>
             </button>
           </div>
-          <div class="relative">
-            <textarea id="output-prompt" rows="12" readonly class="bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-300 cursor-not-allowed resize-none w-full"></textarea>
+          <div class="relative h-80 lg:h-full">
+            <textarea id="output-prompt" readonly class="bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-300 cursor-not-allowed resize-none w-full h-full" placeholder="Optimized prompt will appear here..."></textarea>
             <div id="output-loader" class="absolute inset-0 bg-zinc-900/80 rounded-lg flex flex-col items-center justify-center gap-3 hidden transition-opacity">
               <svg class="animate-spin h-8 w-8 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -175,24 +201,6 @@
       </div>
     </div>
   </main>
-  
-  <!-- API Key Settings Button -->
-  <button id="api-key-settings-button" class="fixed bottom-4 right-4 bg-zinc-700 hover:bg-zinc-600 p-3 rounded-full shadow-lg transition-colors z-20" aria-label="API Key Settings" title="API Key Settings">
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-300"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="m21 2-9.6 9.6"></path><path d="M15.5 7.5 14 6"></path></svg>
-  </button>
-
-  <!-- API Key Modal -->
-  <div id="api-key-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-    <div class="bg-zinc-800 border border-zinc-700 w-full max-w-md rounded-2xl shadow-xl p-6 text-center">
-      <h2 id="api-key-modal-title" class="text-xl font-bold mb-4">Enter Gemini API Key</h2>
-      <p class="text-zinc-400 text-sm mb-4">To use this application, you need a Google Gemini API key. Your key is saved locally in your browser's session storage and is never sent to our servers.</p>
-      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-sm text-cyan-400 hover:text-cyan-300 hover:underline mb-4 inline-block">Get your free Gemini API key from Google AI Studio</a>
-      <input id="api-key-input" type="password" class="w-full bg-zinc-700 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors" placeholder="Enter your API key here">
-      <button id="save-api-key-button" class="mt-4 w-full bg-cyan-500 hover:bg-cyan-600 text-zinc-900 font-bold py-2 px-6 rounded-lg shadow-lg transition-colors">
-        Save Key
-      </button>
-    </div>
-  </div>
 
   <!-- History Modal -->
   <div id="history-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" aria-modal="true" role="dialog">
@@ -212,8 +220,16 @@
     </div>
   </div>
 
+  <!-- Donate Button -->
+  <a href="https://paypal.me/sahuadarsh0" target="_blank" rel="noopener noreferrer" 
+     class="fixed bottom-4 left-4 z-20 flex items-center gap-2 bg-zinc-800/80 backdrop-blur-sm border border-zinc-700 hover:bg-zinc-700/80 text-sm font-medium py-2 px-3 rounded-lg transition-all hover:scale-105"
+     title="Support the developer">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-pink-400">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
+    </svg>
+    <span class="text-zinc-300 hidden sm:inline">Support Me</span>
+  </a>
 
   <script type="module" src="index.tsx"></script>
-<script type="module" src="/index.tsx"></script>
 </body>
 </html>

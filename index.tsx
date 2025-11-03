@@ -2,16 +2,24 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-import { GoogleGenAI } from "@google/genai";
+// FIX: The 'LiveSession' type is not exported from the '@google/genai' module.
+import { GoogleGenAI, LiveServerMessage, Modality, Blob } from "@google/genai";
 
 // --- DOM Elements ---
 const inputPrompt = document.getElementById('input-prompt') as HTMLTextAreaElement;
+const negativePrompt = document.getElementById('negative-prompt') as HTMLTextAreaElement;
 const outputPrompt = document.getElementById('output-prompt') as HTMLTextAreaElement;
 const optimizeButton = document.getElementById('optimize-button') as HTMLButtonElement;
 const stopButton = document.getElementById('stop-button') as HTMLButtonElement;
 const copyButton = document.getElementById('copy-button') as HTMLButtonElement;
 const copyButtonText = document.getElementById('copy-button-text') as HTMLSpanElement;
 const outputLoader = document.getElementById('output-loader') as HTMLDivElement;
+const micButton = document.getElementById('mic-button') as HTMLButtonElement;
+const translatingLoader = document.getElementById('translating-loader') as HTMLDivElement;
+// FIX: Cast to unknown first to resolve SVGElement conversion error.
+const micIcon = document.getElementById('mic-icon') as unknown as SVGElement;
+// FIX: Cast to unknown first to resolve SVGElement conversion error.
+const stopMicIcon = document.getElementById('stop-mic-icon') as unknown as SVGElement;
 
 // Config Elements
 const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
@@ -30,21 +38,26 @@ const closeModalButton = document.getElementById('close-modal-button') as HTMLBu
 const historyModalContent = document.getElementById('history-modal-content') as HTMLDivElement;
 const clearHistoryButton = document.getElementById('clear-history-button') as HTMLButtonElement;
 
-// API Key Modal Elements
-const apiKeyModal = document.getElementById('api-key-modal') as HTMLDivElement;
-const apiKeyModalTitle = document.getElementById('api-key-modal-title') as HTMLHeadingElement;
-const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement;
-const saveApiKeyButton = document.getElementById('save-api-key-button') as HTMLButtonElement;
-const apiKeySettingsButton = document.getElementById('api-key-settings-button') as HTMLButtonElement;
-
 // --- State ---
 const HISTORY_KEY = 'promptOptimizerHistory';
-const API_KEY_SESSION_KEY = 'geminiApiKey';
+const SESSION_STATE_KEY = 'promptOptimizerSession';
 const MAX_HISTORY_ITEMS = 20;
 let promptHistory: string[] = [];
 let isGenerating = false;
 let isCancelled = false;
 let ai: GoogleGenAI | null = null;
+
+// STT State
+let isRecording = false;
+let isTranslating = false;
+// FIX: Replaced 'LiveSession' with 'any' since it is not an exported type.
+let sessionPromise: Promise<any> | null = null;
+let mediaStream: MediaStream | null = null;
+let inputAudioContext: AudioContext | null = null;
+let scriptProcessor: ScriptProcessorNode | null = null;
+let currentTurnTranscription = '';
+let fullSessionTranscription = '';
+let previousPromptValue = '';
 
 
 // --- UI Management ---
@@ -54,6 +67,7 @@ const showLoadingState = (loading: boolean) => {
   stopButton.classList.toggle('hidden', !loading);
   outputLoader.classList.toggle('hidden', !loading);
   inputPrompt.disabled = loading;
+  negativePrompt.disabled = loading;
   optimizeButton.disabled = loading;
 };
 
@@ -71,24 +85,12 @@ const closeHistoryModal = () => {
   historyModal.classList.add('hidden');
 };
 
-const openApiKeyModal = () => {
-    const currentKey = sessionStorage.getItem(API_KEY_SESSION_KEY);
-    if (currentKey) {
-        apiKeyModalTitle.textContent = 'Update Gemini API Key';
-        apiKeyInput.value = currentKey;
-        saveApiKeyButton.textContent = 'Update Key';
-    } else {
-        apiKeyModalTitle.textContent = 'Enter Gemini API Key';
-        apiKeyInput.value = '';
-        saveApiKeyButton.textContent = 'Save Key';
-    }
-    apiKeyModal.classList.remove('hidden');
-};
-
 const setAppDisabled = (disabled: boolean) => {
     inputPrompt.disabled = disabled;
+    negativePrompt.disabled = disabled;
     optimizeButton.disabled = disabled;
     historyButton.disabled = disabled;
+    micButton.disabled = disabled;
 
     const configSection = document.getElementById('config-section') as HTMLElement;
     const configInputs = configSection.querySelectorAll('input, select');
@@ -187,16 +189,73 @@ const clearHistory = () => {
   renderHistory();
 };
 
+// --- Session State Management ---
+const saveStateToLocalStorage = () => {
+    try {
+        const selectedGoal = (document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement)?.value;
+        const state = {
+            inputPrompt: inputPrompt.value,
+            negativePrompt: negativePrompt.value,
+            model: modelSelect.value,
+            goal: selectedGoal,
+            tone: toneSelect.value,
+            useAdvanced: useAdvancedCheckbox.checked,
+            advancedStrategy: advancedStrategySelect.value,
+        };
+        localStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
+    } catch (error) {
+        console.warn("Could not save session state to local storage:", error);
+    }
+};
+
+const loadStateFromLocalStorage = () => {
+    const savedStateJSON = localStorage.getItem(SESSION_STATE_KEY);
+    if (!savedStateJSON) return;
+
+    try {
+        const savedState = JSON.parse(savedStateJSON);
+        
+        if (savedState.inputPrompt) inputPrompt.value = savedState.inputPrompt;
+        if (savedState.negativePrompt) negativePrompt.value = savedState.negativePrompt;
+        
+        if (savedState.model && Array.from(modelSelect.options).some(o => o.value === savedState.model)) {
+             modelSelect.value = savedState.model;
+        }
+
+        if (savedState.goal) {
+            const goalRadio = document.querySelector(`input[name="optimization-goal"][value="${savedState.goal}"]`) as HTMLInputElement;
+            if (goalRadio) goalRadio.checked = true;
+        }
+
+        if (savedState.tone) toneSelect.value = savedState.tone;
+        if (typeof savedState.useAdvanced === 'boolean') {
+            useAdvancedCheckbox.checked = savedState.useAdvanced;
+        }
+        if (savedState.advancedStrategy) advancedStrategySelect.value = savedState.advancedStrategy;
+
+        // Trigger change events to update UI state (e.g., disabled states)
+        useAdvancedCheckbox.dispatchEvent(new Event('change'));
+        const checkedGoal = document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement;
+        if (checkedGoal) {
+            checkedGoal.dispatchEvent(new Event('change'));
+        }
+
+    } catch (e) {
+        console.error("Error loading saved state from local storage:", e);
+        localStorage.removeItem(SESSION_STATE_KEY);
+    }
+};
+
 // --- API Call ---
 const optimizePrompt = async () => {
   if (!ai) {
-    outputPrompt.value = "API client is not initialized. Please provide an API key.";
-    openApiKeyModal();
+    outputPrompt.value = "AI client is not initialized. Please ensure the API Key is configured correctly.";
     setAppDisabled(true);
     return;
   }
   
   const userPrompt = inputPrompt.value.trim();
+  const negativePromptText = negativePrompt.value.trim();
   if (!userPrompt) {
     outputPrompt.value = "Please enter a prompt to optimize.";
     return;
@@ -273,6 +332,10 @@ const optimizePrompt = async () => {
                 break;
         }
     }
+
+    if (negativePromptText) {
+        systemInstruction += ` The user has provided a negative prompt. The optimized prompt must contain a section that explicitly tells the AI to avoid the following concepts, objects, or qualities: "${negativePromptText}". This is a hard constraint. For example, add a section like "---AVOID---" or "Negative Prompt:" to the final output.`;
+    }
     
     const response = await ai.models.generateContent({
       model: selectedModel,
@@ -300,6 +363,200 @@ const optimizePrompt = async () => {
   }
 };
 
+// --- STT / Gemini Live ---
+const updateMicButtonState = (isRecordingActive: boolean) => {
+    isRecording = isRecordingActive;
+    if (isRecordingActive) {
+        micIcon.classList.add('hidden');
+        stopMicIcon.classList.remove('hidden');
+        micButton.classList.remove('bg-zinc-700', 'hover:bg-zinc-600');
+        micButton.classList.add('bg-red-500/20');
+        micButton.setAttribute('aria-label', 'Stop Recording');
+        micButton.title = 'Stop Recording';
+    } else {
+        micIcon.classList.remove('hidden');
+        stopMicIcon.classList.add('hidden');
+        micButton.classList.add('bg-zinc-700', 'hover:bg-zinc-600');
+        micButton.classList.remove('bg-red-500/20');
+        micButton.setAttribute('aria-label', 'Start Recording');
+        micButton.title = 'Start Recording';
+    }
+};
+
+function encode(bytes: Uint8Array): string {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function createBlob(data: Float32Array): Blob {
+  const l = data.length;
+  const int16 = new Int16Array(l);
+  for (let i = 0; i < l; i++) {
+    int16[i] = data[i] * 32768;
+  }
+  return {
+    data: encode(new Uint8Array(int16.buffer)),
+    mimeType: 'audio/pcm;rate=16000',
+  };
+}
+
+const cleanupRecordingResources = () => {
+    mediaStream?.getTracks().forEach(track => track.stop());
+    scriptProcessor?.disconnect();
+    inputAudioContext?.close().catch(console.error);
+
+    sessionPromise = null;
+    mediaStream = null;
+    scriptProcessor = null;
+    inputAudioContext = null;
+
+    currentTurnTranscription = '';
+    previousPromptValue = '';
+    fullSessionTranscription = '';
+    
+    inputPrompt.classList.remove('listening');
+    inputPrompt.placeholder = 'e.g., a cat wearing a hat';
+};
+
+const startRecording = async () => {
+    if (!ai || isRecording || isTranslating) return;
+    updateMicButtonState(true);
+    inputPrompt.classList.add('listening');
+    inputPrompt.placeholder = 'Listening... Speak now.';
+    
+    previousPromptValue = inputPrompt.value;
+    currentTurnTranscription = '';
+    fullSessionTranscription = '';
+
+    try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+        sessionPromise = ai.live.connect({
+            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            callbacks: {
+                onopen: () => {
+                    if (!isRecording || !mediaStream) {
+                        console.warn("onopen called, but recording has already been stopped.");
+                        sessionPromise?.then(session => session.close());
+                        return;
+                    }
+                    inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+                    const source = inputAudioContext.createMediaStreamSource(mediaStream);
+                    scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
+                    scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                        const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                        const pcmBlob = createBlob(inputData);
+                        sessionPromise?.then((session) => {
+                            session.sendRealtimeInput({ media: pcmBlob });
+                        });
+                    };
+                    source.connect(scriptProcessor);
+                    scriptProcessor.connect(inputAudioContext.destination);
+                },
+                onmessage: async (message: LiveServerMessage) => {
+                    if (message.serverContent?.inputTranscription?.text) {
+                        const transcribedChunk = message.serverContent.inputTranscription.text;
+                        currentTurnTranscription += transcribedChunk;
+                        fullSessionTranscription += transcribedChunk;
+                        inputPrompt.value = previousPromptValue + fullSessionTranscription;
+                    }
+
+                    if (message.serverContent?.turnComplete && currentTurnTranscription.trim()) {
+                        const textToTranslate = currentTurnTranscription;
+                        currentTurnTranscription = ''; 
+                
+                        try {
+                            const response = await ai!.models.generateContent({
+                                model: 'gemini-2.5-flash',
+                                contents: textToTranslate,
+                                config: {
+                                    systemInstruction: `You are an expert multilingual translator. Your task is to take the user's text, detect its language, and translate it into natural-sounding English. You must only output the translated English text, with no additional commentary, labels, or explanations.`,
+                                }
+                            });
+                
+                            const translatedText = response.text.trim();
+                            
+                            previousPromptValue += translatedText + ' ';
+                            inputPrompt.value = previousPromptValue;
+                            fullSessionTranscription = ''; // Clear original transcription after translation
+                        } catch (error) {
+                            console.error("Translation error:", error);
+                            previousPromptValue += textToTranslate + ' ';
+                            inputPrompt.value = previousPromptValue;
+                        }
+                    }
+                },
+                onerror: (e: ErrorEvent) => {
+                    console.error('Session error:', e);
+                    outputPrompt.value = "An error occurred with the microphone session. Please try again.";
+                    if (isRecording) {
+                        stopRecording(false);
+                    }
+                },
+                onclose: (e: CloseEvent) => {
+                    if (isRecording) {
+                        stopRecording(false);
+                    }
+                },
+            },
+            config: {
+                responseModalities: [Modality.AUDIO],
+                inputAudioTranscription: {},
+            },
+        });
+    } catch (error) {
+        console.error('Error starting recording:', error);
+        outputPrompt.value = "Could not access microphone. Please ensure permission is granted and try again.";
+        updateMicButtonState(false);
+        inputPrompt.classList.remove('listening');
+        inputPrompt.placeholder = 'e.g., a cat wearing a hat';
+    }
+};
+
+const stopRecording = async (isFromUserClick: boolean = true) => {
+    if (!isRecording) return;
+    updateMicButtonState(false);
+
+    if (sessionPromise) {
+        sessionPromise.then(session => session.close());
+    }
+
+    const textToTranslate = fullSessionTranscription.trim();
+
+    if (isFromUserClick && textToTranslate) {
+        isTranslating = true;
+        translatingLoader.classList.remove('hidden');
+        micButton.disabled = true;
+
+        try {
+            const systemInstruction = `You are an expert multilingual translator. Your task is to take the user's raw, potentially fragmented speech-to-text transcription, detect its language, correct any transcription errors, and translate it into natural-sounding English. The input may contain repetitions or pauses. Your output must be only the final, clean, translated English text, with no additional commentary, labels, or explanations.`;
+            
+            const response = await ai!.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: textToTranslate,
+                config: { systemInstruction }
+            });
+
+            const finalTranslatedText = response.text.trim();
+            inputPrompt.value = previousPromptValue + finalTranslatedText;
+        } catch (error) {
+            console.error("Final translation error:", error);
+            outputPrompt.value = "An error occurred during the final translation step.";
+        } finally {
+            isTranslating = false;
+            translatingLoader.classList.add('hidden');
+            micButton.disabled = false;
+            cleanupRecordingResources();
+        }
+    } else {
+        cleanupRecordingResources();
+    }
+};
+
 
 // --- Event Listeners ---
 optimizeButton.addEventListener('click', optimizePrompt);
@@ -310,6 +567,15 @@ stopButton.addEventListener('click', () => {
     resetUI();
     outputPrompt.value = "Optimization stopped by user.";
   }
+});
+
+micButton.addEventListener('click', () => {
+    if (isTranslating) return;
+    if (!isRecording) {
+        startRecording();
+    } else {
+        stopRecording();
+    }
 });
 
 copyButton.addEventListener('click', () => {
@@ -330,23 +596,6 @@ historyModal.addEventListener('click', (e) => {
   }
 });
 clearHistoryButton.addEventListener('click', clearHistory);
-
-apiKeySettingsButton.addEventListener('click', openApiKeyModal);
-
-saveApiKeyButton.addEventListener('click', () => {
-    const apiKey = apiKeyInput.value.trim();
-    if (apiKey) {
-        sessionStorage.setItem(API_KEY_SESSION_KEY, apiKey);
-        initializeAiClient(apiKey);
-    } else {
-        apiKeyInput.classList.add('border-red-500');
-        apiKeyInput.placeholder = 'API Key cannot be empty.';
-        setTimeout(() => {
-            apiKeyInput.classList.remove('border-red-500');
-        }, 2000);
-    }
-});
-
 
 goalRadios.forEach(radio => {
     radio.addEventListener('change', () => {
@@ -411,35 +660,56 @@ const createParticles = () => {
     }
 };
 
+// --- Model Loading ---
+const populateModels = () => {
+  modelSelect.innerHTML = '';
+  
+  const models = [
+      { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
+      { value: 'gemini-2.5-flash-lite', text: 'Gemini 2.5 Flash Lite' },
+      { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro' },
+  ];
+
+  models.forEach(model => {
+      const option = document.createElement('option');
+      option.value = model.value;
+      option.textContent = model.text;
+      modelSelect.appendChild(option);
+  });
+  
+  modelSelect.value = 'gemini-2.5-flash'; // Set a default
+  modelSelect.disabled = false;
+};
+
+
 // --- AI Client & App Initialization ---
-const initializeAiClient = (apiKey: string) => {
+const initializeAiClient = async () => {
     try {
-        ai = new GoogleGenAI({ apiKey });
-        apiKeyModal.classList.add('hidden');
+        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        populateModels();
         setAppDisabled(false);
-        if (outputPrompt.placeholder === "Please enter your Gemini API key to begin.") {
-            outputPrompt.placeholder = "Optimized prompt will appear here...";
-            outputPrompt.value = '';
-        }
+        outputPrompt.placeholder = "Optimized prompt will appear here...";
+        outputPrompt.value = '';
     } catch (error) {
         console.error("Failed to initialize GoogleGenAI:", error);
-        outputPrompt.value = "Failed to initialize AI Client. The API Key might be invalid.";
-        sessionStorage.removeItem(API_KEY_SESSION_KEY);
-        openApiKeyModal();
+        outputPrompt.value = "Failed to initialize AI Client. Please ensure the API Key is configured correctly in the environment.";
         setAppDisabled(true);
     }
 };
 
-const initializeApp = () => {
+const initializeApp = async () => {
     loadHistory();
     createParticles();
-    const savedApiKey = sessionStorage.getItem(API_KEY_SESSION_KEY);
-    if (savedApiKey) {
-        initializeAiClient(savedApiKey);
-    } else {
-        openApiKeyModal();
+    
+    if (!process.env.API_KEY) {
+        outputPrompt.placeholder = "API Key is not configured. Please set the API_KEY environment variable.";
+        outputPrompt.value = "API Key is not configured. Please set the API_KEY environment variable.";
+        modelSelect.innerHTML = '<option>API Key required</option>';
         setAppDisabled(true);
-        outputPrompt.placeholder = "Please enter your Gemini API key to begin.";
+    } else {
+       await initializeAiClient();
+       loadStateFromLocalStorage();
+       setInterval(saveStateToLocalStorage, 2500); // Auto-save every 2.5 seconds
     }
 };
 

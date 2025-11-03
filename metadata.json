@@ -1,5 +1,7 @@
 {
   "name": "Prompt Optimizer",
   "description": "An application to refine and enhance user prompts using Gemini for better AI-generated results.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
