@@ -46,9 +46,21 @@ const closeHistoryBtn = document.getElementById('close-history') as HTMLButtonEl
 const historyContent = document.getElementById('history-content') as HTMLDivElement;
 const clearHistoryBtn = document.getElementById('clear-history') as HTMLButtonElement;
 
+// API Key Modal Elements
+const apikeyModal = document.getElementById('apikey-modal') as HTMLDivElement;
+const apikeyInput = document.getElementById('api-key-input') as HTMLInputElement;
+const saveApikeyBtn = document.getElementById('save-apikey-btn') as HTMLButtonElement;
+const apikeyError = document.getElementById('apikey-error') as HTMLDivElement;
+const saveBtnText = document.getElementById('save-btn-text') as HTMLSpanElement;
+const saveBtnSpinner = document.getElementById('save-btn-spinner') as HTMLDivElement;
+const apikeyBtn = document.getElementById('apikey-btn') as HTMLButtonElement;
+const cancelApikeyBtn = document.getElementById('cancel-apikey-btn') as HTMLButtonElement;
+
 // --- State ---
 const HISTORY_KEY = 'promptOptimizerHistory';
 const THEME_KEY = 'promptOptimizerTheme';
+const API_KEY_STORAGE = 'gemini_api_key_custom'; // LocalStorage Key for BYOK
+
 let promptHistory: string[] = [];
 let isGenerating = false;
 let isCancelled = false;
@@ -75,17 +87,99 @@ const initializeApp = async () => {
     setupStrategySelection();
     initBackgroundEffects();
     
-    if (!process.env.API_KEY) {
-        outputPrompt.value = "API Key missing. Please set API_KEY in environment.";
-        optimizeButton.disabled = true;
+    // Check for saved API Key in LocalStorage
+    const savedKey = localStorage.getItem(API_KEY_STORAGE);
+    if (savedKey) {
+        // If key exists, initialize AI
+        initAIClient(savedKey);
     } else {
-        try {
-            ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-            populateModels();
-        } catch (e) {
-            console.error(e);
-            outputPrompt.value = "Failed to init AI client.";
+        // If no key, show modal
+        apikeyModal.classList.remove('hidden');
+        cancelApikeyBtn.classList.add('hidden'); // Cannot cancel if no key
+    }
+};
+
+const initAIClient = (key: string) => {
+    try {
+        ai = new GoogleGenAI({ apiKey: key });
+        populateModels();
+        apikeyModal.classList.add('hidden');
+        optimizeButton.disabled = false;
+    } catch (e) {
+        console.error(e);
+        localStorage.removeItem(API_KEY_STORAGE);
+        apikeyModal.classList.remove('hidden');
+        cancelApikeyBtn.classList.add('hidden');
+        apikeyError.textContent = "Stored key was invalid. Please enter a new one.";
+        apikeyError.classList.remove('hidden');
+    }
+};
+
+const validateAndSaveKey = async () => {
+    const key = apikeyInput.value.trim();
+    if (!key) {
+        apikeyError.textContent = "Please enter an API Key.";
+        apikeyError.classList.remove('hidden');
+        return;
+    }
+
+    // REGEX Check: Google API Keys usually start with AIza and are 39 chars long
+    const keyRegex = /^AIza[0-9A-Za-z-_]{35}$/;
+    if (!keyRegex.test(key)) {
+         apikeyError.textContent = "Invalid Format. Keys typically start with 'AIza'.";
+         apikeyError.classList.remove('hidden');
+         return;
+    }
+
+    // UI Loading State
+    apikeyError.classList.add('hidden');
+    saveBtnText.textContent = "Verifying...";
+    saveBtnSpinner.classList.remove('hidden');
+    saveApikeyBtn.disabled = true;
+
+    try {
+        // Create a temp client to test the key
+        const tempAI = new GoogleGenAI({ apiKey: key });
+        
+        console.log("Validating API Key...");
+        
+        // Use a strict, structured request to validate.
+        // We look for any valid response text.
+        const response = await tempAI.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [{ text: 'Reply with "ok"' }] }
+        });
+
+        // Double check we actually got a response structure
+        if (!response || !response.text) {
+             throw new Error("API returned no content. Key might be invalid.");
         }
+
+        // If successful, save and init
+        console.log("API Key validated successfully.");
+        localStorage.setItem(API_KEY_STORAGE, key);
+        initAIClient(key);
+        
+    } catch (e: any) {
+        console.error("Validation Failed", e);
+        apikeyError.classList.remove('hidden');
+        
+        // Better Error Messages
+        let msg = "Validation failed. Please check your key.";
+        if (e.message) {
+            if (e.message.includes('403') || e.message.includes('400') || e.message.includes('API key not valid')) {
+                msg = "Invalid API Key. Please verify permissions in Google AI Studio.";
+            } else if (e.message.includes('NetworkError') || e.message.includes('Failed to fetch')) {
+                msg = "Network Error. Please check your connection.";
+            } else {
+                msg = `Error: ${e.message}`;
+            }
+        }
+        apikeyError.textContent = msg;
+    } finally {
+        saveBtnText.textContent = "Verify & Save Key";
+        saveBtnSpinner.classList.add('hidden');
+        saveApikeyBtn.disabled = false;
     }
 };
 
@@ -371,7 +465,7 @@ const optimizePrompt = async () => {
 
         const response = await ai.models.generateContent({
             model: modelName,
-            contents: userPrompt, // Use simple string payload to avoid Structure errors
+            contents: userPrompt, // Use simple string payload
             config: config
         });
 
@@ -704,6 +798,22 @@ clearHistoryBtn.addEventListener('click', () => {
     promptHistory = [];
     localStorage.removeItem(HISTORY_KEY);
     renderHistory();
+});
+
+// API Key Listeners
+saveApikeyBtn.addEventListener('click', validateAndSaveKey);
+apikeyInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') validateAndSaveKey();
+});
+apikeyBtn.addEventListener('click', () => {
+    // Open Modal for editing
+    apikeyModal.classList.remove('hidden');
+    apikeyInput.value = ''; // Clear for security/new entry
+    apikeyError.classList.add('hidden');
+    cancelApikeyBtn.classList.remove('hidden'); // Allow cancelling since key exists
+});
+cancelApikeyBtn.addEventListener('click', () => {
+    apikeyModal.classList.add('hidden');
 });
 
 // Start
