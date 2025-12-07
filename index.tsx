@@ -1,8 +1,8 @@
+
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-// FIX: The 'LiveSession' type is not exported from the '@google/genai' module.
 import { GoogleGenAI, LiveServerMessage, Modality, Blob } from "@google/genai";
 
 // --- DOM Elements ---
@@ -12,705 +12,699 @@ const outputPrompt = document.getElementById('output-prompt') as HTMLTextAreaEle
 const optimizeButton = document.getElementById('optimize-button') as HTMLButtonElement;
 const stopButton = document.getElementById('stop-button') as HTMLButtonElement;
 const copyButton = document.getElementById('copy-button') as HTMLButtonElement;
-const copyButtonText = document.getElementById('copy-button-text') as HTMLSpanElement;
-const outputLoader = document.getElementById('output-loader') as HTMLDivElement;
+const copyText = document.getElementById('copy-text') as HTMLSpanElement;
+const loaderOverlay = document.getElementById('loader-overlay') as HTMLDivElement;
+const loaderText = document.getElementById('loader-text') as HTMLParagraphElement;
+
+// Negative Prompt Toggle
+const toggleNegBtn = document.getElementById('toggle-negative-prompt') as HTMLButtonElement;
+const negContainer = document.getElementById('negative-prompt-container') as HTMLDivElement;
+const chevronRight = document.getElementById('icon-chevron-right') as HTMLElement;
+const chevronDown = document.getElementById('icon-chevron-down') as HTMLElement;
+
+// Theme Toggle
+const themeToggleBtn = document.getElementById('theme-toggle') as HTMLButtonElement;
+const iconSun = document.getElementById('icon-sun') as unknown as SVGElement;
+const iconMoon = document.getElementById('icon-moon') as unknown as SVGElement;
+
+// Mic Elements
 const micButton = document.getElementById('mic-button') as HTMLButtonElement;
-const translatingLoader = document.getElementById('translating-loader') as HTMLDivElement;
-// FIX: Cast to unknown first to resolve SVGElement conversion error.
 const micIcon = document.getElementById('mic-icon') as unknown as SVGElement;
-// FIX: Cast to unknown first to resolve SVGElement conversion error.
 const stopMicIcon = document.getElementById('stop-mic-icon') as unknown as SVGElement;
+const transcriptionBadge = document.getElementById('transcription-badge') as HTMLDivElement;
 
 // Config Elements
 const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
 const toneSelect = document.getElementById('tone-select') as HTMLSelectElement;
-const goalRadiosContainer = document.getElementById('optimization-goal-container') as HTMLDivElement;
-const goalRadios = document.querySelectorAll('input[name="optimization-goal"]');
+const toneSection = document.getElementById('tone-section') as HTMLDivElement;
+const strategyDesc = document.getElementById('strategy-desc') as HTMLSpanElement;
 
-const useAdvancedCheckbox = document.getElementById('use-advanced-checkbox') as HTMLInputElement;
-const advancedStrategyContainer = document.getElementById('advanced-strategy-container') as HTMLDivElement;
-const advancedStrategySelect = document.getElementById('advanced-strategy-select') as HTMLSelectElement;
-
-// History Modal Elements
+// History Elements
 const historyButton = document.getElementById('history-button') as HTMLButtonElement;
 const historyModal = document.getElementById('history-modal') as HTMLDivElement;
-const closeModalButton = document.getElementById('close-modal-button') as HTMLButtonElement;
-const historyModalContent = document.getElementById('history-modal-content') as HTMLDivElement;
-const clearHistoryButton = document.getElementById('clear-history-button') as HTMLButtonElement;
+const closeHistoryBtn = document.getElementById('close-history') as HTMLButtonElement;
+const historyContent = document.getElementById('history-content') as HTMLDivElement;
+const clearHistoryBtn = document.getElementById('clear-history') as HTMLButtonElement;
 
 // --- State ---
 const HISTORY_KEY = 'promptOptimizerHistory';
-const SESSION_STATE_KEY = 'promptOptimizerSession';
-const MAX_HISTORY_ITEMS = 20;
+const THEME_KEY = 'promptOptimizerTheme';
 let promptHistory: string[] = [];
 let isGenerating = false;
 let isCancelled = false;
 let ai: GoogleGenAI | null = null;
+let currentStrategy = 'general'; // Default
 
-// STT State
+// STT / Audio State
 let isRecording = false;
-let isTranslating = false;
-// FIX: Replaced 'LiveSession' with 'any' since it is not an exported type.
 let sessionPromise: Promise<any> | null = null;
 let mediaStream: MediaStream | null = null;
 let inputAudioContext: AudioContext | null = null;
 let scriptProcessor: ScriptProcessorNode | null = null;
-let currentTurnTranscription = '';
-let fullSessionTranscription = '';
-let previousPromptValue = '';
+let analyser: AnalyserNode | null = null;
+let visualizerFrame: number | null = null;
+let accumulatedTranscript = '';
+let lastPolishedTranscript = ''; // Track what we've already polished
+let loaderInterval: number | null = null;
+let polishTimeout: number | null = null;
 
-
-// --- UI Management ---
-const showLoadingState = (loading: boolean) => {
-  isGenerating = loading;
-  optimizeButton.classList.toggle('hidden', loading);
-  stopButton.classList.toggle('hidden', !loading);
-  outputLoader.classList.toggle('hidden', !loading);
-  inputPrompt.disabled = loading;
-  negativePrompt.disabled = loading;
-  optimizeButton.disabled = loading;
+// --- Initialization ---
+const initializeApp = async () => {
+    loadHistory();
+    setupTheme();
+    setupStrategySelection();
+    initBackgroundEffects();
+    
+    if (!process.env.API_KEY) {
+        outputPrompt.value = "API Key missing. Please set API_KEY in environment.";
+        optimizeButton.disabled = true;
+    } else {
+        try {
+            ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            populateModels();
+        } catch (e) {
+            console.error(e);
+            outputPrompt.value = "Failed to init AI client.";
+        }
+    }
 };
 
-const resetUI = () => {
-  showLoadingState(false);
-  isCancelled = false;
+const populateModels = () => {
+    modelSelect.innerHTML = '';
+    const models = [
+        { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
+        { value: 'gemini-flash-lite-latest', text: 'Gemini 2.5 Flash Lite' },
+        { value: 'gemini-3-pro-preview', text: 'Gemini 3 Pro' },
+    ];
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.value;
+        opt.textContent = m.text;
+        modelSelect.appendChild(opt);
+    });
+};
+
+// --- Theme Logic ---
+const setupTheme = () => {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    // Default to dark (null) or 'dark'. Check if 'light' is saved.
+    if (savedTheme === 'light') {
+        enableLightMode();
+    } else {
+        enableDarkMode();
+    }
+};
+
+const enableLightMode = () => {
+    document.body.classList.add('light-theme');
+    iconSun.classList.add('hidden');
+    iconMoon.classList.remove('hidden');
+    localStorage.setItem(THEME_KEY, 'light');
+};
+
+const enableDarkMode = () => {
+    document.body.classList.remove('light-theme');
+    iconSun.classList.remove('hidden');
+    iconMoon.classList.add('hidden');
+    localStorage.setItem(THEME_KEY, 'dark');
+};
+
+themeToggleBtn.addEventListener('click', () => {
+    if (document.body.classList.contains('light-theme')) {
+        enableDarkMode();
+    } else {
+        enableLightMode();
+    }
+});
+
+
+// --- Background Effects (Stars & Comets) ---
+const initBackgroundEffects = () => {
+    initStars();
+    initComets();
+};
+
+const initStars = () => {
+    const starContainer = document.getElementById('star-container');
+    if (!starContainer) return;
+
+    // Generate static twinkling stars
+    const starCount = 100;
+    
+    for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Random Position
+        const x = Math.random() * 100;
+        const y = Math.random() * 100;
+        
+        // Random Size (Tiny)
+        const size = Math.random() * 2 + 1; // 1px to 3px
+        
+        // Random Animation Params
+        const duration = Math.random() * 3 + 2; // 2s to 5s
+        const delay = Math.random() * 5; 
+        const opacity = Math.random() * 0.7 + 0.3;
+
+        star.style.left = `${x}%`;
+        star.style.top = `${y}%`;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.setProperty('--duration', `${duration}s`);
+        star.style.setProperty('--delay', `${delay}s`);
+        star.style.setProperty('--opacity', `${opacity}`);
+        
+        starContainer.appendChild(star);
+    }
+};
+
+const initComets = () => {
+    const cometContainer = document.getElementById('comet-container');
+    if (!cometContainer) return;
+
+    const spawnComet = () => {
+        const comet = document.createElement('div');
+        comet.classList.add('comet');
+        
+        // --- Minimalist / Galactic Spawn Logic ---
+        // Spawn Area: Top-Right Quadrant to Center
+        // Start X: Between 40% and 120% width (offscreen right)
+        const startX = 40 + Math.random() * 80;
+        // Start Y: Between -20% and 40% height
+        const startY = -20 - Math.random() * 60;
+        
+        // Random Properties - SUBTLE
+        const size = 1 + Math.random() * 2; // Smaller size (1-3px)
+        const tailLength = 80 + Math.random() * 150; // Shorter tails
+        const duration = 3 + Math.random() * 4; // Slower: 3s to 7s
+        const opacity = 0.3 + Math.random() * 0.5; // Max 0.8 opacity
+
+        comet.style.setProperty('--x-start', `${startX}vw`);
+        comet.style.setProperty('--y-start', `${startY}vh`);
+        comet.style.setProperty('--size', `${size}px`);
+        comet.style.setProperty('--tail-length', `${tailLength}px`);
+        comet.style.setProperty('--duration', `${duration}s`);
+        comet.style.setProperty('--opacity', `${opacity}`);
+
+        cometContainer.appendChild(comet);
+
+        // Remove after animation completes
+        setTimeout(() => {
+            if (comet.parentNode === cometContainer) {
+                cometContainer.removeChild(comet);
+            }
+        }, duration * 1000 + 100);
+
+        // Spawn Interval - Minimal/Rare
+        const nextDelay = Math.random() * 5000 + 3000; // 3 to 8 seconds delay
+        setTimeout(spawnComet, nextDelay);
+    };
+
+    // Initial single start
+    setTimeout(spawnComet, 1000);
+};
+
+// --- Strategy Selection UI ---
+const setupStrategySelection = () => {
+    const cards = document.querySelectorAll('.strategy-card');
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            // Remove active from all
+            cards.forEach(c => c.classList.remove('active'));
+            // Add active to clicked
+            card.classList.add('active');
+            
+            currentStrategy = (card as HTMLElement).dataset.value || 'general';
+            const desc = (card as HTMLElement).dataset.desc || '';
+            
+            // Update UI Desc
+            strategyDesc.textContent = desc;
+            strategyDesc.classList.remove('opacity-0');
+
+            // Show tone select only if writing
+            if (currentStrategy === 'writing') {
+                toneSection.classList.remove('hidden');
+            } else {
+                toneSection.classList.add('hidden');
+            }
+        });
+    });
+};
+
+// --- Negative Prompt Toggle ---
+toggleNegBtn.addEventListener('click', () => {
+    const isHidden = negContainer.classList.contains('hidden');
+    if(isHidden) {
+        negContainer.classList.remove('hidden');
+        chevronRight.classList.add('hidden');
+        chevronDown.classList.remove('hidden');
+    } else {
+        negContainer.classList.add('hidden');
+        chevronRight.classList.remove('hidden');
+        chevronDown.classList.add('hidden');
+    }
+});
+
+// --- Loading Text Animation ---
+const cycleLoaderText = () => {
+    const steps = [
+        "Analyzing prompt intent...",
+        "Identifying key constraints...",
+        "Applying optimization framework...",
+        "Refining structure and tone...",
+        "Polishing final output..."
+    ];
+    let stepIndex = 0;
+    
+    loaderText.textContent = steps[0];
+    
+    if (loaderInterval) clearInterval(loaderInterval);
+    
+    loaderInterval = window.setInterval(() => {
+        stepIndex = (stepIndex + 1) % steps.length;
+        loaderText.textContent = steps[stepIndex];
+    }, 2000);
+};
+
+// --- Core Optimization Logic ---
+const optimizePrompt = async () => {
+    if (!ai) return;
+
+    const userPrompt = inputPrompt.value.trim();
+    // Only check negative prompt if visible
+    let negPrompt = '';
+    if(!negContainer.classList.contains('hidden')) {
+        negPrompt = negativePrompt.value.trim();
+    }
+
+    if (!userPrompt) {
+        outputPrompt.value = "Please enter a prompt first.";
+        return;
+    }
+
+    saveHistory(userPrompt);
+    setLoading(true);
+    cycleLoaderText();
+    outputPrompt.value = '';
+
+    const modelName = modelSelect.value;
+    const isReasoning = currentStrategy === 'reasoning';
+
+    // Construct System Instruction based on Strategy
+    let systemInstruction = `You are a world-class prompt engineer. Your goal is to rewrite the user's input into a highly effective, structured, and clear prompt for a Large Language Model. Retain the core intent but maximize clarity and adherence to the chosen structure. Output ONLY the optimized prompt.`;
+
+    // Strategy Switching
+    switch(currentStrategy) {
+        case 'reasoning':
+            systemInstruction += ` USE THE "CHAIN OF THOUGHT" TECHNIQUE. Explicitly ask the model to "think step-by-step", break down the problem, and explain its reasoning before giving the final answer.`;
+            break;
+        case 'coding':
+            systemInstruction += ` OPTIMIZE FOR CODING. The prompt should ask for clean, efficient, modern code, including comments and error handling. Specify the language if implied.`;
+            break;
+        case 'writing':
+            const tone = toneSelect.value;
+            systemInstruction += ` OPTIMIZE FOR CREATIVE WRITING. Focus on evocative language, sensory details, and narrative flow. Tone: ${tone}.`;
+            break;
+        case 'race':
+            systemInstruction += ` USE THE 'RACE' FRAMEWORK: Role (Who is the AI?), Action (What to do?), Context (Background info), Explanation (Why/How?).`;
+            break;
+        case 'care':
+            systemInstruction += ` USE THE 'CARE' FRAMEWORK: Context, Action, Result, Example.`;
+            break;
+        case 'ape':
+             systemInstruction += ` USE THE 'APE' FRAMEWORK: Action, Purpose, Execution.`;
+             break;
+        case 'coast':
+             systemInstruction += ` USE THE 'COAST' FRAMEWORK: Context, Objective, Actions, Scenario, Task.`;
+             break;
+        case 'rise':
+             systemInstruction += ` USE THE 'RISE' FRAMEWORK: Role, Input, Steps, Execution.`;
+             break;
+        case 'pain':
+             systemInstruction += ` USE THE 'PAIN' FRAMEWORK: Problem, Action, Information, Next Steps.`;
+             break;
+        default: // General
+            systemInstruction += ` Make the prompt direct, remove ambiguity, and structure it logically.`;
+            break;
+    }
+
+    if (negPrompt) {
+        systemInstruction += `\n\nCONSTRAINT: The prompt MUST include a negative constraint section forbidding: "${negPrompt}".`;
+    }
+
+    try {
+        // Dynamic Config
+        const config: any = {
+            systemInstruction: systemInstruction,
+        };
+
+        // Inject Thinking Config if Reasoning is selected.
+        if (isReasoning) {
+            // Adjust budget based on model capability
+            const budget = modelName.includes('pro') ? 16384 : 8192;
+            config.thinkingConfig = { thinkingBudget: budget }; 
+            // Override loader text for Thinking mode
+            if(loaderInterval) clearInterval(loaderInterval);
+            loaderText.textContent = `Thinking Deeply (Budget: ${budget})...`;
+        }
+
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: userPrompt, // Use simple string payload to avoid Structure errors
+            config: config
+        });
+
+        if (!isCancelled) {
+            outputPrompt.value = response.text || "No response generated.";
+        } else {
+            outputPrompt.value = "Stopped.";
+        }
+
+    } catch (e: any) {
+        console.error(e);
+        let errorMsg = "Error during optimization.";
+        if (e.message?.includes("NetworkError") || e.message?.includes("fetch")) {
+            errorMsg = "Network Error: Please check your internet connection or API Key.";
+        } else if (e.message) {
+            errorMsg = `Error: ${e.message}`;
+        }
+        outputPrompt.value = errorMsg;
+    } finally {
+        setLoading(false);
+        isCancelled = false;
+        if(loaderInterval) clearInterval(loaderInterval);
+    }
+};
+
+const setLoading = (loading: boolean) => {
+    isGenerating = loading;
+    if (loading) {
+        loaderOverlay.classList.remove('hidden');
+        optimizeButton.classList.add('hidden');
+        stopButton.classList.remove('hidden');
+        inputPrompt.disabled = true;
+    } else {
+        loaderOverlay.classList.add('hidden');
+        optimizeButton.classList.remove('hidden');
+        stopButton.classList.add('hidden');
+        inputPrompt.disabled = false;
+        copyButton.disabled = false;
+    }
+};
+
+// --- Audio / Visualizer Logic ---
+
+function setupAudioVisualizer(stream: MediaStream) {
+    if (!inputAudioContext) return;
+    analyser = inputAudioContext.createAnalyser();
+    analyser.fftSize = 32; // Small size for performance
+    const source = inputAudioContext.createMediaStreamSource(stream);
+    source.connect(analyser); // Only connect to analyser, not destination
+    
+    updateMicVisualizer();
 }
 
-const openHistoryModal = () => {
-  renderHistory();
-  historyModal.classList.remove('hidden');
-};
+function updateMicVisualizer() {
+    if (!analyser || !isRecording) {
+        if(visualizerFrame) cancelAnimationFrame(visualizerFrame);
+        // Reset mic style
+        micButton.style.removeProperty('--audio-level');
+        return;
+    }
 
-const closeHistoryModal = () => {
-  historyModal.classList.add('hidden');
-};
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
 
-const setAppDisabled = (disabled: boolean) => {
-    inputPrompt.disabled = disabled;
-    negativePrompt.disabled = disabled;
-    optimizeButton.disabled = disabled;
-    historyButton.disabled = disabled;
-    micButton.disabled = disabled;
-
-    const configSection = document.getElementById('config-section') as HTMLElement;
-    const configInputs = configSection.querySelectorAll('input, select');
+    // Calculate average volume
+    let sum = 0;
+    for(let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+    }
+    const average = sum / bufferLength;
     
-    if (disabled) {
-        configSection.classList.add('opacity-50', 'pointer-events-none');
-    } else {
-        configSection.classList.remove('opacity-50', 'pointer-events-none');
-    }
+    // Normalize to 0-1 range (approximate max 255)
+    // Add a slight multiplier to make it more reactive
+    const normalizedLevel = Math.min(1, (average / 255) * 2.5);
 
-    configInputs.forEach(input => {
-        (input as HTMLInputElement | HTMLSelectElement).disabled = disabled;
-    });
+    // Set CSS variable on the button
+    micButton.style.setProperty('--audio-level', normalizedLevel.toString());
 
-    // Re-evaluate dependent disabled states when enabling
-    if (!disabled) {
-         useAdvancedCheckbox.dispatchEvent(new Event('change'));
-        const checkedGoal = document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement;
-        if(checkedGoal) {
-            checkedGoal.dispatchEvent(new Event('change'));
-        }
-    }
-};
+    visualizerFrame = requestAnimationFrame(updateMicVisualizer);
+}
 
-
-// --- History Management ---
-const renderHistory = () => {
-  historyModalContent.innerHTML = '';
-  if (promptHistory.length === 0) {
-    historyModalContent.innerHTML = `<p class="text-sm text-zinc-500 text-center py-4">Your recent prompts will appear here.</p>`;
-    clearHistoryButton.disabled = true;
-    return;
-  }
-
-  clearHistoryButton.disabled = false;
-  promptHistory.forEach((prompt, index) => {
-    const item = document.createElement('div');
-    item.className = 'bg-zinc-700/50 p-3 rounded-lg flex justify-between items-center gap-2 group';
-    
-    const promptText = document.createElement('p');
-    promptText.className = 'text-zinc-300 text-sm truncate flex-1';
-    promptText.textContent = prompt;
-    promptText.title = prompt;
-
-    const actions = document.createElement('div');
-    actions.className = 'flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity';
-
-    const useButton = document.createElement('button');
-    useButton.className = 'text-xs bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/40 px-2 py-1 rounded-md';
-    useButton.textContent = 'Use';
-    useButton.onclick = () => {
-      inputPrompt.value = prompt;
-      closeHistoryModal();
-    };
-
-    const deleteButton = document.createElement('button');
-    deleteButton.className = 'text-xs text-red-400 hover:text-red-300';
-    deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
-    deleteButton.onclick = (e) => {
-      e.stopPropagation();
-      deleteHistoryItem(index);
-    };
-
-    actions.append(useButton, deleteButton);
-    item.append(promptText, actions);
-    historyModalContent.appendChild(item);
-  });
-};
-
-
-const saveHistory = (prompt: string) => {
-  promptHistory = promptHistory.filter(p => p !== prompt);
-  promptHistory.unshift(prompt);
-  if (promptHistory.length > MAX_HISTORY_ITEMS) {
-    promptHistory = promptHistory.slice(0, MAX_HISTORY_ITEMS);
-  }
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(promptHistory));
-};
-
-const loadHistory = () => {
-  const storedHistory = localStorage.getItem(HISTORY_KEY);
-  if (storedHistory) {
-    promptHistory = JSON.parse(storedHistory);
-  }
-};
-
-const deleteHistoryItem = (index: number) => {
-  promptHistory.splice(index, 1);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(promptHistory));
-  renderHistory();
-};
-
-const clearHistory = () => {
-  promptHistory = [];
-  localStorage.removeItem(HISTORY_KEY);
-  renderHistory();
-};
-
-// --- Session State Management ---
-const saveStateToLocalStorage = () => {
-    try {
-        const selectedGoal = (document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement)?.value;
-        const state = {
-            inputPrompt: inputPrompt.value,
-            negativePrompt: negativePrompt.value,
-            model: modelSelect.value,
-            goal: selectedGoal,
-            tone: toneSelect.value,
-            useAdvanced: useAdvancedCheckbox.checked,
-            advancedStrategy: advancedStrategySelect.value,
-        };
-        localStorage.setItem(SESSION_STATE_KEY, JSON.stringify(state));
-    } catch (error) {
-        console.warn("Could not save session state to local storage:", error);
-    }
-};
-
-const loadStateFromLocalStorage = () => {
-    const savedStateJSON = localStorage.getItem(SESSION_STATE_KEY);
-    if (!savedStateJSON) return;
-
-    try {
-        const savedState = JSON.parse(savedStateJSON);
-        
-        if (savedState.inputPrompt) inputPrompt.value = savedState.inputPrompt;
-        if (savedState.negativePrompt) negativePrompt.value = savedState.negativePrompt;
-        
-        if (savedState.model && Array.from(modelSelect.options).some(o => o.value === savedState.model)) {
-             modelSelect.value = savedState.model;
-        }
-
-        if (savedState.goal) {
-            const goalRadio = document.querySelector(`input[name="optimization-goal"][value="${savedState.goal}"]`) as HTMLInputElement;
-            if (goalRadio) goalRadio.checked = true;
-        }
-
-        if (savedState.tone) toneSelect.value = savedState.tone;
-        if (typeof savedState.useAdvanced === 'boolean') {
-            useAdvancedCheckbox.checked = savedState.useAdvanced;
-        }
-        if (savedState.advancedStrategy) advancedStrategySelect.value = savedState.advancedStrategy;
-
-        // Trigger change events to update UI state (e.g., disabled states)
-        useAdvancedCheckbox.dispatchEvent(new Event('change'));
-        const checkedGoal = document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement;
-        if (checkedGoal) {
-            checkedGoal.dispatchEvent(new Event('change'));
-        }
-
-    } catch (e) {
-        console.error("Error loading saved state from local storage:", e);
-        localStorage.removeItem(SESSION_STATE_KEY);
-    }
-};
-
-// --- API Call ---
-const optimizePrompt = async () => {
-  if (!ai) {
-    outputPrompt.value = "AI client is not initialized. Please ensure the API Key is configured correctly.";
-    setAppDisabled(true);
-    return;
-  }
-  
-  const userPrompt = inputPrompt.value.trim();
-  const negativePromptText = negativePrompt.value.trim();
-  if (!userPrompt) {
-    outputPrompt.value = "Please enter a prompt to optimize.";
-    return;
-  }
-  
-  saveHistory(userPrompt);
-  showLoadingState(true);
-  outputPrompt.value = '';
-  copyButton.disabled = true;
-  copyButtonText.textContent = 'Copy';
-
-  const selectedModel = modelSelect.value;
-  
-  try {
-    let systemInstruction = `You are a prompt optimization expert for large language models. Your task is to rewrite the user's prompt to be more effective, detailed, and clear. Retain the original intent but enhance it. The optimized prompt should be a direct, ready-to-use instruction for an AI. Do not add any conversational text or explanations around the optimized prompt itself.`;
-
-    if (useAdvancedCheckbox.checked) {
-        const selectedStrategy = advancedStrategySelect.value;
-        switch (selectedStrategy) {
-            case 'race':
-                systemInstruction += ` Rewrite the prompt using the RACE framework. The final prompt should clearly define the AI's [R]ole, the [A]ction it needs to take, the [C]ontext for the task, and an [E]xplanation of the expected output format or quality.`;
-                break;
-            case 'care':
-                systemInstruction += ` Rewrite the prompt using the CARE framework. It should provide [C]ontext, define the [A]ction, describe the desired [R]esult, and give an [E]xample of the output.`;
-                break;
-            case 'ape':
-                systemInstruction += ` Rewrite the prompt using the APE framework. It should clearly state the [A]ction, explain the [P]urpose of the action, and detail the [E]xecution steps.`;
-                break;
-            case 'create':
-                systemInstruction += ` Rewrite the prompt using the CREATE framework. Define a [C]haracter/persona, state the [R]equest, provide [E]xamples, specify [A]djustments or constraints, define the output [T]ype, and add any [E]xtras.`;
-                break;
-            case 'tag':
-                systemInstruction += ` Rewrite the prompt using the TAG framework. It should define the overall [T]ask, specify the primary [A]ction, and state the ultimate [G]oal.`;
-                break;
-            case 'creo':
-                systemInstruction += ` Rewrite the prompt using the CREO framework. It should set the [C]ontext, make a clear [R]equest, [E]xplain why it's needed, and describe the desired [O]utcome.`;
-                break;
-            case 'rise':
-                systemInstruction += ` Rewrite the prompt using the RISE framework. It should assign a [R]ole, provide the necessary [I]nput data/context, outline the [S]teps to follow, and describe the final [E]xecution or output.`;
-                break;
-            case 'pain':
-                systemInstruction += ` Rewrite the prompt using the PAIN framework. It should clearly state the [P]roblem, define the [A]ction needed, provide essential [I]nformation, and specify the [N]ext Steps.`;
-                break;
-            case 'coast':
-                systemInstruction += ` Rewrite the prompt using the COAST framework. It should provide [C]ontext, state the main [O]bjective, list the required [A]ctions, describe a relevant [S]cenario, and define the specific [T]ask.`;
-                break;
-            case 'roses':
-                systemInstruction += ` Rewrite the prompt using the ROSES framework. It should assign a [R]ole, define the [O]bjective, set up a [S]cenario, describe the [E]xpected [S]olution, and list the [S]teps to get there.`;
-                break;
-        }
-    } else {
-        const selectedGoal = (document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement)?.value;
-        switch(selectedGoal) {
-            case 'reasoning':
-                systemInstruction += ` The user wants a reasoning prompt. Rewrite the prompt to guide the AI in complex problem-solving by asking it to break down the problem, show step-by-step thinking, and arrive at a logical conclusion.`;
-                break;
-            case 'coding':
-                systemInstruction += ` The user's goal is "Efficient Coding". Transform their plain language request into a high-quality prompt for a programmer AI. The prompt should ask for code that is not only functional but also readable, maintainable, and efficient. If a programming language isn't specified, infer the most likely one or add a placeholder for the user to fill in.`;
-                break;
-            case 'writing':
-                const selectedTone = toneSelect.value;
-                systemInstruction += ` The user's goal is "Creative Writing". Enhance the prompt to be more evocative, detailed, and engaging for a writing AI.`;
-                if (selectedTone !== 'default') {
-                    if (selectedTone === 'with-emojis') {
-                        systemInstruction += ` The final prompt should explicitly ask the AI to adopt a friendly, informal tone and to incorporate relevant emojis in its response.`;
-                    } else {
-                        systemInstruction += ` The final prompt should explicitly ask the AI to adopt a ${selectedTone} tone in its response.`;
-                    }
-                }
-                break;
-            case 'general':
-            default:
-                // No additional instructions for general/standard prompts.
-                break;
-        }
-    }
-
-    if (negativePromptText) {
-        systemInstruction += ` The user has provided a negative prompt. The optimized prompt must contain a section that explicitly tells the AI to avoid the following concepts, objects, or qualities: "${negativePromptText}". This is a hard constraint. For example, add a section like "---AVOID---" or "Negative Prompt:" to the final output.`;
-    }
-    
-    const response = await ai.models.generateContent({
-      model: selectedModel,
-      contents: userPrompt,
-      config: {
-        systemInstruction: systemInstruction,
-      }
-    });
-
-    if (isCancelled) {
-      outputPrompt.value = "Optimization stopped by user.";
-      return;
-    }
-
-    const optimizedText = response.text;
-    outputPrompt.value = optimizedText;
-    copyButton.disabled = false;
-  } catch (error) {
-    console.error("Error optimizing prompt:", error);
-    if (!isCancelled) {
-        outputPrompt.value = "An error occurred while optimizing the prompt. Please check the console for details.";
-    }
-  } finally {
-    resetUI();
-  }
-};
-
-// --- STT / Gemini Live ---
-const updateMicButtonState = (isRecordingActive: boolean) => {
-    isRecording = isRecordingActive;
-    if (isRecordingActive) {
-        micIcon.classList.add('hidden');
-        stopMicIcon.classList.remove('hidden');
-        micButton.classList.remove('bg-zinc-700', 'hover:bg-zinc-600');
-        micButton.classList.add('bg-red-500/20');
-        micButton.setAttribute('aria-label', 'Stop Recording');
-        micButton.title = 'Stop Recording';
-    } else {
-        micIcon.classList.remove('hidden');
-        stopMicIcon.classList.add('hidden');
-        micButton.classList.add('bg-zinc-700', 'hover:bg-zinc-600');
-        micButton.classList.remove('bg-red-500/20');
-        micButton.setAttribute('aria-label', 'Start Recording');
-        micButton.title = 'Start Recording';
-    }
-};
+// --- Live API STT ---
 
 function encode(bytes: Uint8Array): string {
-  let binary = '';
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
 }
-
+  
 function createBlob(data: Float32Array): Blob {
-  const l = data.length;
-  const int16 = new Int16Array(l);
-  for (let i = 0; i < l; i++) {
-    int16[i] = data[i] * 32768;
-  }
-  return {
-    data: encode(new Uint8Array(int16.buffer)),
-    mimeType: 'audio/pcm;rate=16000',
-  };
+    const l = data.length;
+    const int16 = new Int16Array(l);
+    for (let i = 0; i < l; i++) {
+        int16[i] = data[i] * 32768;
+    }
+    return {
+        data: encode(new Uint8Array(int16.buffer)),
+        mimeType: 'audio/pcm;rate=16000',
+    };
 }
 
-const cleanupRecordingResources = () => {
-    mediaStream?.getTracks().forEach(track => track.stop());
-    scriptProcessor?.disconnect();
-    inputAudioContext?.close().catch(console.error);
+const toggleRecording = async () => {
+    if (isRecording) {
+        stopRecording();
+    } else {
+        startRecording();
+    }
+}
 
-    sessionPromise = null;
-    mediaStream = null;
-    scriptProcessor = null;
-    inputAudioContext = null;
+// Shared Polish Function (Used for Intermediate and Final)
+const performPolish = async (isIntermediate = false) => {
+    if (!ai || accumulatedTranscript.length < 5) return;
 
-    currentTurnTranscription = '';
-    previousPromptValue = '';
-    fullSessionTranscription = '';
+    // Redundancy Check: capture the transcript we are about to polish
+    const currentTranscript = accumulatedTranscript;
     
-    inputPrompt.classList.remove('listening');
-    inputPrompt.placeholder = 'e.g., a cat wearing a hat';
+    // UI Feedback
+    transcriptionBadge.textContent = isIntermediate ? "Refining..." : "Polishing...";
+    transcriptionBadge.classList.remove('hidden');
+    
+    try {
+        const polishResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: currentTranscript,
+            config: {
+                systemInstruction: `You are a translator and grammar expert. The user has just dictated a prompt via voice. 
+                1. Detect the language. 
+                2. If not English, translate to English.
+                3. Fix any transcription errors, stuttering, or grammar mistakes.
+                4. **FORMATTING RULE**: If the input contains a numbered sequence, multiple steps, or list-like items, format the output as a bulleted list. Otherwise, output a clean, standard paragraph.
+                5. Output ONLY the clean, final English text.`
+            }
+        });
+        
+        // Update input only if we have a valid response
+        if(polishResponse.text) {
+             inputPrompt.value = polishResponse.text.trim();
+             // Mark this content as polished so we don't redo it immediately
+             lastPolishedTranscript = currentTranscript;
+        }
+    } catch(e) {
+        console.warn("Polish failed", e);
+    } finally {
+        // Reset UI if intermediate, logic handles final cleanup separately
+        if (isIntermediate) {
+            transcriptionBadge.textContent = "Live Translation Active";
+        }
+    }
 };
 
 const startRecording = async () => {
-    if (!ai || isRecording || isTranslating) return;
-    updateMicButtonState(true);
-    inputPrompt.classList.add('listening');
-    inputPrompt.placeholder = 'Listening... Speak now.';
+    if (!ai) return;
+    isRecording = true;
+    updateMicUI(true);
+    accumulatedTranscript = '';
+    lastPolishedTranscript = ''; // Reset on new session
+    inputPrompt.placeholder = "Listening...";
+    // Disable enhance button while recording
+    optimizeButton.disabled = true;
     
-    previousPromptValue = inputPrompt.value;
-    currentTurnTranscription = '';
-    fullSessionTranscription = '';
-
     try {
         mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        
+        // Setup Button Visualizer
+        setupAudioVisualizer(mediaStream);
 
+        // Connect Live API
         sessionPromise = ai.live.connect({
             model: 'gemini-2.5-flash-native-audio-preview-09-2025',
             callbacks: {
                 onopen: () => {
-                    if (!isRecording || !mediaStream) {
-                        console.warn("onopen called, but recording has already been stopped.");
-                        sessionPromise?.then(session => session.close());
-                        return;
-                    }
-                    inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+                    // CRITICAL FIX: Check if context and stream still exist.
+                    if (!inputAudioContext || !mediaStream || !isRecording) return;
+
                     const source = inputAudioContext.createMediaStreamSource(mediaStream);
                     scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
-                    scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
-                        const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
+                    scriptProcessor.onaudioprocess = (e) => {
+                        if(!isRecording) return;
+                        const inputData = e.inputBuffer.getChannelData(0);
                         const pcmBlob = createBlob(inputData);
-                        sessionPromise?.then((session) => {
-                            session.sendRealtimeInput({ media: pcmBlob });
-                        });
+                        sessionPromise?.then(session => session.sendRealtimeInput({ media: pcmBlob }));
                     };
                     source.connect(scriptProcessor);
                     scriptProcessor.connect(inputAudioContext.destination);
                 },
-                onmessage: async (message: LiveServerMessage) => {
-                    if (message.serverContent?.inputTranscription?.text) {
-                        const transcribedChunk = message.serverContent.inputTranscription.text;
-                        currentTurnTranscription += transcribedChunk;
-                        fullSessionTranscription += transcribedChunk;
-                        inputPrompt.value = previousPromptValue + fullSessionTranscription;
-                    }
+                onmessage: (msg: LiveServerMessage) => {
+                    // Real-time transcription display
+                    if(msg.serverContent?.inputTranscription?.text) {
+                        const chunk = msg.serverContent.inputTranscription.text;
+                        accumulatedTranscript += chunk;
+                        inputPrompt.value = accumulatedTranscript;
+                        // Auto scroll
+                        inputPrompt.scrollTop = inputPrompt.scrollHeight;
 
-                    if (message.serverContent?.turnComplete && currentTurnTranscription.trim()) {
-                        const textToTranslate = currentTurnTranscription;
-                        currentTurnTranscription = ''; 
-                
-                        try {
-                            const response = await ai!.models.generateContent({
-                                model: 'gemini-2.5-flash',
-                                contents: textToTranslate,
-                                config: {
-                                    systemInstruction: `You are an expert multilingual translator. Your task is to take the user's text, detect its language, and translate it into natural-sounding English. You must only output the translated English text, with no additional commentary, labels, or explanations.`,
-                                }
-                            });
-                
-                            const translatedText = response.text.trim();
-                            
-                            previousPromptValue += translatedText + ' ';
-                            inputPrompt.value = previousPromptValue;
-                            fullSessionTranscription = ''; // Clear original transcription after translation
-                        } catch (error) {
-                            console.error("Translation error:", error);
-                            previousPromptValue += textToTranslate + ' ';
-                            inputPrompt.value = previousPromptValue;
-                        }
+                        // Intermediate Polish Logic
+                        if (polishTimeout) window.clearTimeout(polishTimeout);
+                        polishTimeout = window.setTimeout(() => performPolish(true), 1500); // 1.5s silence triggers polish
                     }
                 },
-                onerror: (e: ErrorEvent) => {
-                    console.error('Session error:', e);
-                    outputPrompt.value = "An error occurred with the microphone session. Please try again.";
-                    if (isRecording) {
-                        stopRecording(false);
-                    }
-                },
-                onclose: (e: CloseEvent) => {
-                    if (isRecording) {
-                        stopRecording(false);
-                    }
-                },
+                onerror: (e) => console.error(e),
+                onclose: () => console.log('Session closed')
             },
             config: {
-                responseModalities: [Modality.AUDIO],
-                inputAudioTranscription: {},
-            },
+                // We only want transcription, no audio response needed really, 
+                // but we must set modality.
+                responseModalities: [Modality.AUDIO], 
+                inputAudioTranscription: {}, // Enable STT with default settings
+            }
         });
-    } catch (error) {
-        console.error('Error starting recording:', error);
-        outputPrompt.value = "Could not access microphone. Please ensure permission is granted and try again.";
-        updateMicButtonState(false);
-        inputPrompt.classList.remove('listening');
-        inputPrompt.placeholder = 'e.g., a cat wearing a hat';
-    }
-};
 
-const stopRecording = async (isFromUserClick: boolean = true) => {
-    if (!isRecording) return;
-    updateMicButtonState(false);
-
-    if (sessionPromise) {
-        sessionPromise.then(session => session.close());
-    }
-
-    const textToTranslate = fullSessionTranscription.trim();
-
-    if (isFromUserClick && textToTranslate) {
-        isTranslating = true;
-        translatingLoader.classList.remove('hidden');
-        micButton.disabled = true;
-
-        try {
-            const systemInstruction = `You are an expert multilingual translator. Your task is to take the user's raw, potentially fragmented speech-to-text transcription, detect its language, correct any transcription errors, and translate it into natural-sounding English. The input may contain repetitions or pauses. Your output must be only the final, clean, translated English text, with no additional commentary, labels, or explanations.`;
-            
-            const response = await ai!.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: textToTranslate,
-                config: { systemInstruction }
-            });
-
-            const finalTranslatedText = response.text.trim();
-            inputPrompt.value = previousPromptValue + finalTranslatedText;
-        } catch (error) {
-            console.error("Final translation error:", error);
-            outputPrompt.value = "An error occurred during the final translation step.";
-        } finally {
-            isTranslating = false;
-            translatingLoader.classList.add('hidden');
-            micButton.disabled = false;
-            cleanupRecordingResources();
-        }
-    } else {
-        cleanupRecordingResources();
-    }
-};
-
-
-// --- Event Listeners ---
-optimizeButton.addEventListener('click', optimizePrompt);
-
-stopButton.addEventListener('click', () => {
-  if (isGenerating) {
-    isCancelled = true;
-    resetUI();
-    outputPrompt.value = "Optimization stopped by user.";
-  }
-});
-
-micButton.addEventListener('click', () => {
-    if (isTranslating) return;
-    if (!isRecording) {
-        startRecording();
-    } else {
+    } catch (e) {
+        console.error("Mic error", e);
         stopRecording();
     }
-});
+};
+
+const stopRecording = async () => {
+    isRecording = false;
+    updateMicUI(false);
+    
+    // Clear any pending intermediate polish
+    if (polishTimeout) {
+        window.clearTimeout(polishTimeout);
+        polishTimeout = null;
+    }
+    
+    // Cleanup Audio
+    if(scriptProcessor) {
+        scriptProcessor.disconnect();
+        scriptProcessor = null;
+    }
+    if(mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+    }
+    if(sessionPromise) {
+        sessionPromise.then(s => s.close());
+        sessionPromise = null;
+    }
+    if(inputAudioContext) {
+        inputAudioContext.close();
+        inputAudioContext = null;
+    }
+
+    // Final Polish Step
+    // CHECK: Only polish if the current transcript is different from the last one we polished
+    if (accumulatedTranscript.length > 0 && accumulatedTranscript !== lastPolishedTranscript) {
+        await performPolish(false);
+    } 
+    
+    transcriptionBadge.classList.add('hidden');
+    transcriptionBadge.textContent = "Live Translation Active";
+    optimizeButton.disabled = false;
+};
+
+const updateMicUI = (active: boolean) => {
+    if (active) {
+        micIcon.classList.add('hidden');
+        stopMicIcon.classList.remove('hidden');
+        micButton.classList.add('mic-visualizer-active');
+        transcriptionBadge.classList.remove('hidden');
+    } else {
+        micIcon.classList.remove('hidden');
+        stopMicIcon.classList.add('hidden');
+        micButton.classList.remove('mic-visualizer-active');
+        // Do not hide badge immediately if polishing is about to start, handled in stopRecording
+        if(!isRecording && accumulatedTranscript.length < 5) {
+             transcriptionBadge.classList.add('hidden');
+        }
+    }
+};
+
+// --- History Logic ---
+const loadHistory = () => {
+    const stored = localStorage.getItem(HISTORY_KEY);
+    if(stored) promptHistory = JSON.parse(stored);
+};
+
+const saveHistory = (txt: string) => {
+    promptHistory = promptHistory.filter(t => t !== txt);
+    promptHistory.unshift(txt);
+    if(promptHistory.length > 20) promptHistory.pop();
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(promptHistory));
+};
+
+const renderHistory = () => {
+    historyContent.innerHTML = '';
+    promptHistory.forEach(item => {
+        const div = document.createElement('div');
+        // Use custom class for theming instead of hardcoded tailwind colors
+        div.className = 'history-item p-4 rounded-xl cursor-pointer mb-2 flex flex-col group';
+        
+        const text = document.createElement('p');
+        text.className = 'line-clamp-2 text-sm pointer-events-none';
+        text.textContent = item;
+        
+        div.appendChild(text);
+        
+        div.onclick = () => {
+            inputPrompt.value = item;
+            historyModal.classList.add('hidden');
+        };
+        historyContent.appendChild(div);
+    });
+};
+
+// --- Listeners ---
+optimizeButton.addEventListener('click', optimizePrompt);
+stopButton.addEventListener('click', () => isCancelled = true);
+micButton.addEventListener('click', toggleRecording);
 
 copyButton.addEventListener('click', () => {
-  if (outputPrompt.value) {
+    if(!outputPrompt.value) return;
     navigator.clipboard.writeText(outputPrompt.value);
-    copyButtonText.textContent = 'Copied!';
-    setTimeout(() => {
-      copyButtonText.textContent = 'Copy';
-    }, 2000);
-  }
+    copyText.textContent = "Copied!";
+    setTimeout(() => copyText.textContent = "Copy", 2000);
 });
 
-historyButton.addEventListener('click', openHistoryModal);
-closeModalButton.addEventListener('click', closeHistoryModal);
-historyModal.addEventListener('click', (e) => {
-  if (e.target === historyModal) {
-    closeHistoryModal();
-  }
+historyButton.addEventListener('click', () => {
+    renderHistory();
+    historyModal.classList.remove('hidden');
 });
-clearHistoryButton.addEventListener('click', clearHistory);
-
-goalRadios.forEach(radio => {
-    radio.addEventListener('change', () => {
-        const selectedGoal = (document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement)?.value;
-        const isWriting = selectedGoal === 'writing';
-        toneSelect.disabled = !isWriting;
-        if (!isWriting) {
-            toneSelect.value = 'default';
-        }
-    });
+closeHistoryBtn.addEventListener('click', () => historyModal.classList.add('hidden'));
+clearHistoryBtn.addEventListener('click', () => {
+    promptHistory = [];
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
 });
 
-useAdvancedCheckbox.addEventListener('change', (e) => {
-    const isChecked = (e.target as HTMLInputElement).checked;
-    advancedStrategySelect.disabled = !isChecked;
-    advancedStrategyContainer.classList.toggle('opacity-50', !isChecked);
-    
-    goalRadios.forEach(radio => {
-        (radio as HTMLInputElement).disabled = isChecked;
-    });
-    goalRadiosContainer.classList.toggle('opacity-50', isChecked);
-    
-    // Also disable tone select if advanced is checked
-    if (isChecked) {
-        toneSelect.disabled = true;
-    } else {
-        // Re-enable tone select only if 'writing' is checked
-        const selectedGoal = (document.querySelector('input[name="optimization-goal"]:checked') as HTMLInputElement)?.value;
-        if(selectedGoal === 'writing') {
-            toneSelect.disabled = false;
-        }
-    }
-});
-
-// --- Background Animation ---
-const createParticles = () => {
-    const particleContainer = document.getElementById('particle-container');
-    if (!particleContainer) return;
-
-    const particleCount = 75;
-    for (let i = 0; i < particleCount; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-
-        // Randomize starting position, size, and animation properties
-        const x = Math.random() * 150 - 25; // Start across a wider horizontal range
-        const y = Math.random() * 150 - 25; // Start across a wider vertical range
-        particle.style.left = `${x}vw`;
-        particle.style.top = `${y}vh`;
-        
-        const size = Math.random() * 2 + 1; // 1px to 3px
-        particle.style.width = `${size}px`;
-        particle.style.height = `${size}px`;
-
-        const duration = Math.random() * 10 + 8; // 8s to 18s
-        particle.style.animationDuration = `${duration}s`;
-        
-        const delay = Math.random() * 15; // 0s to 15s
-        particle.style.animationDelay = `${delay}s`;
-
-        particleContainer.appendChild(particle);
-    }
-};
-
-// --- Model Loading ---
-const populateModels = () => {
-  modelSelect.innerHTML = '';
-  
-  const models = [
-      { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
-      { value: 'gemini-2.5-flash-lite', text: 'Gemini 2.5 Flash Lite' },
-      { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro' },
-  ];
-
-  models.forEach(model => {
-      const option = document.createElement('option');
-      option.value = model.value;
-      option.textContent = model.text;
-      modelSelect.appendChild(option);
-  });
-  
-  modelSelect.value = 'gemini-2.5-flash'; // Set a default
-  modelSelect.disabled = false;
-};
-
-
-// --- AI Client & App Initialization ---
-const initializeAiClient = async () => {
-    try {
-        ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        populateModels();
-        setAppDisabled(false);
-        outputPrompt.placeholder = "Optimized prompt will appear here...";
-        outputPrompt.value = '';
-    } catch (error) {
-        console.error("Failed to initialize GoogleGenAI:", error);
-        outputPrompt.value = "Failed to initialize AI Client. Please ensure the API Key is configured correctly in the environment.";
-        setAppDisabled(true);
-    }
-};
-
-const initializeApp = async () => {
-    loadHistory();
-    createParticles();
-    
-    if (!process.env.API_KEY) {
-        outputPrompt.placeholder = "API Key is not configured. Please set the API_KEY environment variable.";
-        outputPrompt.value = "API Key is not configured. Please set the API_KEY environment variable.";
-        modelSelect.innerHTML = '<option>API Key required</option>';
-        setAppDisabled(true);
-    } else {
-       await initializeAiClient();
-       loadStateFromLocalStorage();
-       setInterval(saveStateToLocalStorage, 2500); // Auto-save every 2.5 seconds
-    }
-};
-
+// Start
 initializeApp();

@@ -1,234 +1,284 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prompt Optimizer</title>
+  <title>Gemini Prompt Workbench</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="index.css">
-<script type="importmap">
-{
-  "imports": {
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+  <script type="importmap">
+  {
+    "imports": {
+      "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
+    }
   }
-}
-</script>
+  </script>
 </head>
-<body class="bg-zinc-900 text-white font-sans flex justify-center items-start sm:items-center min-h-screen p-4">
-  <div id="particle-container"></div>
+<body class="flex flex-col lg:items-center lg:justify-center p-0 lg:p-8 min-h-screen transition-colors duration-500">
+  
+  <!-- Living Background -->
+  <div class="aurora-bg"></div>
 
-  <main class="relative z-10 bg-zinc-800/50 backdrop-blur-sm border border-zinc-700 p-6 sm:p-8 rounded-2xl shadow-2xl w-full max-w-6xl space-y-6">
-    <header class="flex justify-between items-center">
-      <div class="text-left">
-        <h1 class="text-2xl sm:text-3xl font-bold text-white">
-          Prompt Optimizer
-        </h1>
-        <p class="text-zinc-400 mt-1 text-sm sm:text-base">Refine your prompts for better AI responses.</p>
+  <!-- Star Field -->
+  <div id="star-container" class="star-container"></div>
+
+  <!-- Comet Container -->
+  <div id="comet-container" class="comet-container"></div>
+
+  <!-- Main Glass Container -->
+  <main class="glass-panel w-full lg:max-w-[1600px] min-h-screen lg:min-h-0 lg:h-[85vh] rounded-none lg:rounded-3xl flex flex-col overflow-visible lg:overflow-hidden relative z-10">
+    
+    <!-- Header -->
+    <header class="flex-none px-4 lg:px-8 py-5 border-b border-white/5 flex flex-wrap gap-3 justify-between items-center bg-black/5 backdrop-blur-md sticky top-0 z-50 lg:static">
+      <div class="flex items-center gap-3">
+        <!-- Logo Removed as requested -->
+        <div>
+            <!-- Removed version badge, increased font size -->
+            <h1 class="text-xl lg:text-2xl font-bold text-zinc-100 tracking-tight text-glow">Prompt Optimizer</h1>
+        </div>
       </div>
-      <button id="history-button" class="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-sm font-medium py-2 px-4 rounded-lg transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-400"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M12 8v4l2 2"></path></svg>
-        History
-      </button>
+      
+      <div class="flex items-center gap-4">
+        <!-- Sponsor Button -->
+        <a href="https://www.paypal.me/sahuadarsh0" target="_blank" rel="noopener noreferrer" class="hidden sm:flex btn-sponsor items-center gap-2 px-5 py-2 rounded-full text-xs font-bold uppercase tracking-wider group">
+            <svg class="group-hover:fill-white/50 transition-colors" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            Sponsor
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" class="text-zinc-400 hover:text-cyan-400 transition-colors p-2 rounded-lg hover:bg-white/5" title="Toggle Theme">
+            <svg id="icon-sun" class="block" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41-1.41"/><path d="m19.07 4.93-1.41-1.41"/></svg>
+            <svg id="icon-moon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+
+        <!-- History Button -->
+        <button id="history-button" class="text-zinc-400 hover:text-cyan-400 transition-colors p-2 rounded-lg hover:bg-white/5" title="History">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M12 8v4l2 2"></path></svg>
+        </button>
+      </div>
     </header>
 
-    <!-- Configuration Section -->
-    <section id="config-section" class="bg-zinc-900/50 border border-zinc-700 p-4 rounded-xl space-y-4">
-        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-             <h2 class="text-lg font-semibold text-zinc-200">Configuration</h2>
-             <div class="relative group sm:w-64">
-                <label for="model-select" class="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1">
-                  Model
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                </label>
-                 <div class="absolute bottom-full right-0 mb-2 w-72 p-2 bg-zinc-700 text-zinc-200 text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Choose the Gemini model for optimization. Models are loaded dynamically.
-                </div>
-                <select id="model-select" class="w-full bg-zinc-800 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50" disabled>
-                    <option>Loading models...</option>
-                </select>
-            </div>
-        </div>
+    <!-- App Body: Grid Layout -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-visible lg:overflow-hidden">
+        
+        <!-- LEFT: Control Deck -->
+        <aside class="col-span-1 lg:col-span-4 border-r-0 lg:border-r border-b lg:border-b-0 border-white/5 flex flex-col bg-black/5 overflow-visible lg:overflow-hidden">
+            <div class="flex-1 overflow-visible lg:overflow-y-auto p-5 lg:p-8 space-y-8 no-scrollbar">
+                
+                <!-- Mobile Sponsor -->
+                <a href="https://www.paypal.me/sahuadarsh0" target="_blank" rel="noopener noreferrer" class="sm:hidden btn-sponsor flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-bold w-full mb-4">
+                    Sponsor this project
+                </a>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
-            <!-- Optimization Goal -->
-            <fieldset class="lg:col-span-2">
-                <div class="relative group flex items-center gap-1 mb-3">
-                  <legend class="text-base font-medium text-zinc-300">Optimization Goal</legend>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                   <div class="absolute bottom-full left-0 mb-2 w-80 p-2 bg-zinc-700 text-zinc-200 text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Select a goal to tailor the prompt. 'Standard' is for general use, 'Reasoning' for complex logic, 'Coding' for programming tasks, and 'Writing' for creative content.
-                  </div>
-                </div>
-                <div id="optimization-goal-container" class="grid grid-cols-2 gap-x-4 gap-y-3">
-                    <div class="flex items-center">
-                        <input id="goal-general" name="optimization-goal" type="radio" value="general" class="h-4 w-4 text-cyan-500 bg-zinc-700 border-zinc-600 focus:ring-cyan-600" checked>
-                        <label for="goal-general" class="ml-3 block text-sm font-medium text-zinc-400">Standard Prompt</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="goal-reasoning" name="optimization-goal" type="radio" value="reasoning" class="h-4 w-4 text-cyan-500 bg-zinc-700 border-zinc-600 focus:ring-cyan-600">
-                        <label for="goal-reasoning" class="ml-3 block text-sm font-medium text-zinc-400">Reasoning Prompt</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="goal-coding" name="optimization-goal" type="radio" value="coding" class="h-4 w-4 text-cyan-500 bg-zinc-700 border-zinc-600 focus:ring-cyan-600">
-                        <label for="goal-coding" class="ml-3 block text-sm font-medium text-zinc-400">Efficient Coding</label>
-                    </div>
-                    <div class="flex items-center">
-                        <input id="goal-writing" name="optimization-goal" type="radio" value="writing" class="h-4 w-4 text-cyan-500 bg-zinc-700 border-zinc-600 focus:ring-cyan-600">
-                        <label for="goal-writing" class="ml-3 block text-sm font-medium text-zinc-400">Creative Writing</label>
-                    </div>
-                </div>
-                 <!-- Tone Selection -->
-                <div class="mt-4 relative group">
-                    <label for="tone-select" class="block text-sm font-medium text-zinc-400 mb-1 flex items-center gap-1">
-                      Tone (for Writing)
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    </label>
-                    <div class="absolute bottom-full left-0 mb-2 w-72 p-2 bg-zinc-700 text-zinc-200 text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                      Sets the desired tone for the AI's response. This is only enabled when the 'Creative Writing' goal is selected.
-                    </div>
-                    <select id="tone-select" class="w-full bg-zinc-800 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-opacity text-sm" disabled>
-                        <option value="default">Default Tone</option>
-                        <option value="creative">Creative</option>
-                        <option value="formal">Formal</option>
-                        <option value="informal">Informal</option>
-                        <option value="friendly">Friendly</option>
-                        <option value="with-emojis">With Emojis</option>
-                    </select>
-                </div>
-            </fieldset>
-
-            <!-- Advanced Optimization -->
-            <div id="advanced-strategy-container">
-                <div class="relative group">
-                  <div class="flex items-center mb-3">
-                      <input id="use-advanced-checkbox" type="checkbox" class="h-4 w-4 rounded bg-zinc-700 border-zinc-600 text-cyan-500 focus:ring-cyan-600">
-                      <label for="use-advanced-checkbox" class="ml-3 text-base font-medium text-zinc-300 flex items-center gap-1">
-                        Use Advanced Framework
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-500"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      </label>
-                  </div>
-                  <div class="absolute bottom-full left-0 mb-2 w-80 p-2 bg-zinc-700 text-zinc-200 text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    Use structured prompt engineering frameworks (e.g., RACE, APE) for highly specific and detailed instructions. This overrides the standard Optimization Goal.
-                  </div>
-                </div>
-                <label for="advanced-strategy-select" class="block text-sm font-medium text-zinc-400 mb-1">Framework</label>
-                <select id="advanced-strategy-select" class="w-full bg-zinc-800 border border-zinc-600 rounded-md p-2 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-opacity text-sm" disabled>
-                    <option value="race">Race (Role, Action, Context, Explanation)</option>
-                    <option value="care">Care (Context, Action, Result, Example)</option>
-                    <option value="ape">Ape (Action, Purpose, Execution)</option>
-                    <option value="create">Create (Character, Request, Examples, Adjustments, Type, Extras)</option>
-                    <option value="tag">Tag (Task, Action, Goal)</option>
-                    <option value="creo">Creo (Context, Request, Explanation, Outcome)</option>
-                    <option value="rise">Rise (Role, Input, Steps, Execution)</option>
-                    <option value="pain">Pain (Problem, Action, Information, Next Steps)</option>
-                    <option value="coast">Coast (Context, Objective, Actions, Scenario, Task)</option>
-                    <option value="roses">Roses (Role, Objective, Scenario, Expected Solution, Steps)</option>
-                </select>
-            </div>
-        </div>
-    </section>
-
-    <div class="space-y-6">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Input Column -->
-        <div class="space-y-4">
-            <div>
-                 <div class="flex justify-between items-center mb-3">
-                    <label for="input-prompt" class="text-lg font-semibold text-zinc-300">Your Prompt</label>
-                    <div class="flex items-center gap-2">
-                        <!-- Translating Loader -->
-                        <div id="translating-loader" class="hidden">
-                            <svg class="animate-spin h-5 w-5 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                <!-- Model Config -->
+                <section>
+                    <label class="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3 block">Model Configuration</label>
+                    <div class="relative">
+                        <select id="model-select" class="w-full glass-input rounded-xl p-4 text-base appearance-none focus:ring-0">
+                            <option>Loading models...</option>
+                        </select>
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </div>
-                        <button id="mic-button" class="p-2 rounded-full transition-colors bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Start Recording" title="Start Recording">
-                            <!-- Mic Icon (default) -->
-                            <svg id="mic-icon" class="text-zinc-300" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                                <line x1="12" y1="19" x2="12" y2="22"></line>
-                            </svg>
-                            <!-- Stop Icon (hidden by default) -->
-                             <svg id="stop-mic-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="hidden text-red-400">
-                               <rect width="12" height="12" x="6" y="6" rx="1"></rect>
-                            </svg>
+                    </div>
+                </section>
+
+                <!-- Strategy Grid -->
+                <section>
+                    <label class="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3 block flex justify-between">
+                        Optimization Strategy
+                        <span id="strategy-desc" class="strategy-desc-text normal-case font-normal text-xs opacity-0 transition-opacity">Select a strategy</span>
+                    </label>
+                    
+                    <div class="grid grid-cols-2 gap-4" id="strategy-grid">
+                        <!-- Standard -->
+                        <div class="strategy-card rounded-xl p-4 active" data-value="general" data-desc="General purpose enhancement.">
+                            <div class="strategy-icon mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                            </div>
+                            <h3 class="text-base font-semibold">Standard</h3>
+                            <p class="text-xs mt-1 leading-tight">Clarity & precision</p>
+                        </div>
+                        
+                        <!-- Reasoning -->
+                        <div class="strategy-card rounded-xl p-4" data-value="reasoning" data-desc="Uses Gemini thinking logic.">
+                            <div class="strategy-icon mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-5-5 4 4 0 0 1-5-5"/><path d="M8.5 8.5v.01"/><path d="M16 15.5v.01"/><path d="M12 12v.01"/><path d="M7.5 16.5v.01"/><path d="M15.5 8.5v.01"/></svg>
+                            </div>
+                            <h3 class="text-base font-semibold">Reasoning</h3>
+                            <p class="text-xs mt-1 leading-tight">Uses Gemini thinking logic</p>
+                        </div>
+
+                        <!-- Coding -->
+                        <div class="strategy-card rounded-xl p-4" data-value="coding" data-desc="Optimizes for code generation.">
+                            <div class="strategy-icon mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            </div>
+                            <h3 class="text-base font-semibold">Coding</h3>
+                            <p class="text-xs mt-1 leading-tight">Dev optimized</p>
+                        </div>
+
+                        <!-- Creative -->
+                        <div class="strategy-card rounded-xl p-4" data-value="writing" data-desc="Enhances tone for writers.">
+                            <div class="strategy-icon mb-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+                            </div>
+                            <h3 class="text-base font-semibold">Creative</h3>
+                            <p class="text-xs mt-1 leading-tight">Storytelling</p>
+                        </div>
+                    </div>
+
+                    <!-- Frameworks Section -->
+                    <div class="mt-6 pt-6 border-t border-white/5">
+                        <label class="text-xs font-bold text-zinc-600 uppercase mb-3 block">Advanced Frameworks</label>
+                        <div class="grid grid-cols-3 gap-3">
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="race" data-desc="Role, Action, Context, Explanation.">
+                                <span class="text-sm font-medium text-zinc-300">RACE</span>
+                             </button>
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="care" data-desc="Context, Action, Result, Example.">
+                                <span class="text-sm font-medium text-zinc-300">CARE</span>
+                             </button>
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="ape" data-desc="Action, Purpose, Execution.">
+                                <span class="text-sm font-medium text-zinc-300">APE</span>
+                             </button>
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="coast" data-desc="Context, Objective, Actions, Scenario, Task.">
+                                <span class="text-sm font-medium text-zinc-300">COAST</span>
+                             </button>
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="rise" data-desc="Role, Input, Steps, Execution.">
+                                <span class="text-sm font-medium text-zinc-300">RISE</span>
+                             </button>
+                             <button class="strategy-card rounded-lg p-3 text-center" data-value="pain" data-desc="Problem, Action, Info, Next Steps.">
+                                <span class="text-sm font-medium text-zinc-300">PAIN</span>
+                             </button>
+                        </div>
+                    </div>
+                </section>
+
+                 <!-- Tone Selector (Hidden by default) -->
+                <section id="tone-section" class="hidden transition-all">
+                    <label class="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-3 block">Tone</label>
+                     <div class="relative">
+                        <select id="tone-select" class="w-full glass-input rounded-xl p-4 text-base appearance-none focus:ring-0">
+                            <option value="default">Neutral / Default</option>
+                            <option value="creative">Creative & Vivid</option>
+                            <option value="formal">Academic / Formal</option>
+                            <option value="friendly">Friendly & Casual</option>
+                            <option value="persuasive">Persuasive</option>
+                            <option value="humorous">Humorous</option>
+                        </select>
+                         <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </aside>
+
+        <!-- RIGHT: Workspace -->
+        <section class="col-span-1 lg:col-span-8 flex flex-col relative overflow-visible lg:overflow-hidden min-h-[600px]">
+            
+            <div class="flex-1 p-5 lg:p-8 flex flex-col gap-2 overflow-visible lg:overflow-y-auto no-scrollbar">
+                
+                <!-- Input Area -->
+                <div class="flex-none lg:flex-1 flex flex-col min-h-[220px] relative group">
+                    <div class="flex justify-between items-end mb-3">
+                        <label class="text-base font-semibold text-zinc-300 flex items-center gap-2">
+                             <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]"></div>
+                            Input Prompt
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span id="transcription-badge" class="hidden text-xs badge-live px-2 py-1 rounded animate-pulse">Live Translation Active</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative flex-1 h-56 lg:h-auto">
+                        <textarea id="input-prompt" class="w-full h-full glass-input rounded-2xl p-6 font-mono text-base resize-none focus:ring-0 no-scrollbar" placeholder="Type your prompt here, or use the microphone to dictate..."></textarea>
+                        
+                        <!-- Mic Button - ROUNDED FULL -->
+                        <button id="mic-button" class="absolute bottom-4 right-4 p-4 rounded-full btn-mic z-20 transition-all duration-100 ease-out flex items-center justify-center" title="Dictate Prompt">
+                            <svg id="mic-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                             <svg id="stop-mic-icon" class="hidden text-white" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
                         </button>
                     </div>
                 </div>
-                <textarea id="input-prompt" class="w-full h-48 bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-shadow resize-none" placeholder="e.g., a cat wearing a hat"></textarea>
-            </div>
-            <div>
-                <label for="negative-prompt" class="text-base font-semibold text-zinc-300 mb-2">Negative Prompt <span class="text-sm text-zinc-400 font-normal">(what to avoid)</span></label>
-                <textarea id="negative-prompt" class="w-full h-24 bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-200 focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-shadow resize-none" placeholder="e.g., blurry, ugly, text, watermark"></textarea>
-            </div>
-        </div>
 
-        <!-- Output Column -->
-        <div class="flex flex-col space-y-3">
-          <div class="flex justify-between items-center">
-            <label for="output-prompt" class="text-lg font-semibold text-zinc-300">Optimized Prompt</label>
-            <button id="copy-button" class="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-sm font-medium py-1.5 px-3 rounded-lg transition-colors disabled:opacity-50" disabled>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
-              <span id="copy-button-text">Copy</span>
-            </button>
-          </div>
-          <div class="relative h-80 lg:h-full">
-            <textarea id="output-prompt" readonly class="bg-zinc-900 border border-zinc-700 rounded-lg p-4 text-zinc-300 cursor-not-allowed resize-none w-full h-full" placeholder="Optimized prompt will appear here..."></textarea>
-            <div id="output-loader" class="absolute inset-0 bg-zinc-900/80 rounded-lg flex flex-col items-center justify-center gap-3 hidden transition-opacity">
-              <svg class="animate-spin h-8 w-8 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <p class="text-zinc-400 text-sm">Optimizing...</p>
-            </div>
-          </div>
-        </div>
-      </div>
+                <!-- Toggleable Negative Prompt -->
+                <div class="flex-none flex flex-col gap-2">
+                    <button id="toggle-negative-prompt" class="text-xs uppercase font-bold tracking-wider text-zinc-500 hover:text-cyan-400 flex items-center gap-1 transition-colors w-fit px-1">
+                        <svg id="icon-chevron-right" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        <svg id="icon-chevron-down" class="hidden" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        Add Negative Prompt (Optional)
+                    </button>
+                    <div id="negative-prompt-container" class="hidden h-28 transition-all duration-300 ease-in-out">
+                        <textarea id="negative-prompt" class="w-full h-full glass-input rounded-xl p-4 font-mono text-sm resize-none no-scrollbar" placeholder="e.g. no text, no blur, no code comments..."></textarea>
+                    </div>
+                </div>
 
-       <!-- Action Column -->
-      <div class="text-center pt-2">
-        <div id="action-button-container" class="grid items-center justify-center">
-          <button id="optimize-button" class="bg-cyan-500 hover:bg-cyan-600 text-zinc-900 font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out disabled:opacity-50 disabled:cursor-wait w-48 col-start-1 row-start-1">
-            <span>Optimize</span>
-          </button>
-          <button id="stop-button" class="hidden bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transform hover:scale-105 transition-all duration-300 ease-in-out w-48 flex items-center justify-center gap-2 col-start-1 row-start-1">
-             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"></rect></svg>
-            <span>Stop</span>
-          </button>
-        </div>
-      </div>
+                <!-- Divider -->
+                <div class="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent my-2 flex-none"></div>
+
+                <!-- Output Area -->
+                <div class="flex-none lg:flex-1 flex flex-col min-h-[220px] relative">
+                     <div class="flex justify-between items-end mb-3">
+                        <label class="text-base font-semibold text-zinc-300 flex items-center gap-2">
+                             <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                            Optimized Result
+                        </label>
+                         <button id="copy-button" class="text-xs text-zinc-400 hover:text-white flex items-center gap-1 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded transition-colors disabled:opacity-30" disabled>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <span id="copy-text">Copy</span>
+                        </button>
+                    </div>
+                    <div class="relative flex-1 h-64 lg:h-auto">
+                        <textarea id="output-prompt" readonly class="w-full h-full glass-input rounded-2xl p-6 font-mono text-base resize-none focus:ring-0 no-scrollbar" placeholder="Your optimized prompt will materialize here..."></textarea>
+                        
+                        <!-- Neural Interstellar Loader Overlay -->
+                        <div id="loader-overlay" class="absolute inset-0 bg-black/60 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center hidden z-30 transition-all duration-300">
+                             <div class="loader-orbit mb-8">
+                                <div class="loader-ring ring-1"></div>
+                                <div class="loader-ring ring-2"></div>
+                                <div class="loader-ring ring-3"></div>
+                                <div class="loader-core"></div>
+                            </div>
+                            <p id="loader-text" class="text-cyan-300 text-sm font-mono tracking-widest uppercase">Initializing System...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Action Bar -->
+            <div class="p-6 border-t border-white/5 bg-black/5 flex justify-end gap-4 sticky bottom-0 z-40 lg:static backdrop-blur-md lg:backdrop-blur-none transition-colors duration-300">
+                 <button id="stop-button" class="hidden px-8 py-4 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 font-medium transition-all text-base">
+                    Stop
+                </button>
+                <!-- Magical Enhanced Button -->
+                <button id="optimize-button" class="btn-magic px-10 py-4 rounded-xl font-bold transition-all flex items-center gap-3 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed w-full lg:w-auto justify-center text-base">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
+                    Enhance Prompt
+                </button>
+            </div>
+        </section>
     </div>
   </main>
 
-  <!-- History Modal -->
-  <div id="history-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" aria-modal="true" role="dialog">
-    <div class="bg-zinc-800 border border-zinc-700 w-full max-w-2xl rounded-2xl shadow-xl flex flex-col max-h-[80vh]">
-      <header class="p-4 border-b border-zinc-700 flex justify-between items-center">
-        <h2 class="text-xl font-bold">Prompt History</h2>
-        <button id="close-modal-button" class="text-zinc-400 hover:text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </header>
-      <div id="history-modal-content" class="p-6 overflow-y-auto space-y-3">
-        <!-- History items will be injected here -->
+  <!-- History Modal (Simplified Glass) -->
+  <div id="history-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4 transition-colors duration-300">
+      <div class="glass-panel w-full max-w-lg rounded-2xl flex flex-col max-h-[70vh]">
+          <div class="p-6 border-b border-white/10 flex justify-between items-center">
+              <h3 class="text-xl font-bold text-zinc-100">History</h3>
+              <button id="close-history" class="text-zinc-400 hover:text-white"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+          </div>
+          <div id="history-content" class="flex-1 overflow-y-auto p-6 space-y-3 no-scrollbar">
+              <!-- Items -->
+          </div>
+          <div class="p-6 border-t border-white/10">
+              <button id="clear-history" class="w-full py-3 text-sm font-bold text-red-400 hover:bg-red-500/10 rounded-xl transition-colors">Clear History</button>
+          </div>
       </div>
-       <footer class="p-4 border-t border-zinc-700 mt-auto">
-         <button id="clear-history-button" class="w-full bg-red-500/20 text-red-300 hover:bg-red-500/30 hover:text-red-200 text-sm font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50">Clear All History</button>
-       </footer>
-    </div>
   </div>
-
-  <!-- Donate Button -->
-  <a href="https://paypal.me/sahuadarsh0" target="_blank" rel="noopener noreferrer" 
-     class="fixed bottom-4 left-4 z-20 flex items-center gap-2 bg-zinc-800/80 backdrop-blur-sm border border-zinc-700 hover:bg-zinc-700/80 text-sm font-medium py-2 px-3 rounded-lg transition-all hover:scale-105"
-     title="Support the developer">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-pink-400">
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"></path>
-    </svg>
-    <span class="text-zinc-300 hidden sm:inline">Support Me</span>
-  </a>
 
   <script type="module" src="index.tsx"></script>
 </body>
