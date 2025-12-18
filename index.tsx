@@ -146,7 +146,7 @@ const validateAndSaveKey = async () => {
         // Use a strict, structured request to validate.
         // We look for any valid response text.
         const response = await tempAI.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: { parts: [{ text: 'Reply with "ok"' }] }
         });
 
@@ -186,7 +186,7 @@ const validateAndSaveKey = async () => {
 const populateModels = () => {
     modelSelect.innerHTML = '';
     const models = [
-        { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash' },
+        { value: 'gemini-3-flash-preview', text: 'Gemini 3 Flash' },
         { value: 'gemini-flash-lite-latest', text: 'Gemini 2.5 Flash Lite' },
         { value: 'gemini-3-pro-preview', text: 'Gemini 3 Pro' },
     ];
@@ -592,7 +592,7 @@ const performPolish = async (isIntermediate = false) => {
     
     try {
         const polishResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3-flash-preview',
             contents: currentTranscript,
             config: {
                 systemInstruction: `You are a translator and grammar expert. The user has just dictated a prompt via voice. 
@@ -639,7 +639,7 @@ const startRecording = async () => {
 
         // Connect Live API
         sessionPromise = ai.live.connect({
-            model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+            model: 'gemini-2.5-flash-native-audio-preview-12-2025',
             callbacks: {
                 onopen: () => {
                     // CRITICAL FIX: Check if context and stream still exist.
