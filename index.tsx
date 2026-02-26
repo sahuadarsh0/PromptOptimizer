@@ -188,7 +188,7 @@ const populateModels = () => {
     const models = [
         { value: 'gemini-3-flash-preview', text: 'Gemini 3 Flash' },
         { value: 'gemini-flash-lite-latest', text: 'Gemini 2.5 Flash Lite' },
-        { value: 'gemini-3-pro-preview', text: 'Gemini 3 Pro' },
+        { value: 'gemini-3.1-pro-preview', text: 'Gemini 3.1 Pro' },
     ];
     models.forEach(m => {
         const opt = document.createElement('option');
