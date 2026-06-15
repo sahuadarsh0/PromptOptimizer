@@ -217,8 +217,7 @@ const populateModels = () => {
     // Voice / Live transcription continues to use its own proven working model string below.
     const models = [
         { value: 'gemini-3.5-flash', text: 'Gemini 3.5 Flash', hint: 'Fast • Excellent quality' },
-        { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro', hint: 'Best reasoning & depth' },
-        { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash', hint: 'Balanced speed & power' },
+        { value: 'gemini-3.1-pro-preview', text: 'Gemini 3.1 Pro', hint: 'Best reasoning & depth' },
         { value: 'gemini-3.1-flash-lite', text: 'Gemini 3.1 Flash Lite', hint: 'Ultra fast & efficient' },
     ];
     models.forEach(m => {
