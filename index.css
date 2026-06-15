@@ -42,48 +42,73 @@
   --badge-border: rgba(21, 94, 117, 0.5); /* Cyan 800 */
 }
 
-/* Light Mode Overrides */
+/* ============================================
+   LIGHT THEME — Modern solid-surface architecture (2026)
+   
+   New approach (different from previous attempts):
+   - Main UI uses SOLID elevated surfaces (white/off-white cards + soft shadows).
+     This is the current standard for premium light-mode AI/SaaS tools (Perplexity, Linear, Notion, Cohere light, etc.).
+   - True glassmorphism (backdrop blur + translucency) is reserved ONLY for overlays/modals/floating elements
+     where there is actual content behind it to blur.
+   - Background is a calm, warm-leaning paper tone instead of a bright gradient.
+   - Cosmic decorative effects (stars/comets/aurora) are almost completely suppressed in light —
+     they were designed for dark mode and fight the light aesthetic.
+   - High contrast, crisp text, clear borders, and tasteful elevation.
+   
+   Dark mode remains completely unchanged (original cosmic glass look).
+   ============================================ */
 body.light-theme {
-    --bg-color: #f0f9ff;
-    /* Richer Day Gradient: Sky Blue -> White -> Light Grey */
-    --bg-gradient: linear-gradient(135deg, #dbeafe 0%, #f1f5f9 50%, #ffffff 100%);
-    
-    --glass-border: rgba(148, 163, 184, 0.3);
-    /* More transparent glass to let background effects show through */
-    --glass-surface: rgba(255, 255, 255, 0.65); 
-    --glass-surface-hover: rgba(255, 255, 255, 0.85);
-    --glass-highlight: rgba(255, 255, 255, 0.5);
-    --glass-input-bg: rgba(255, 255, 255, 0.6);
-    --glass-input-focus: rgba(255, 255, 255, 0.95);
-    
-    /* Light Mode Modal - High Contrast */
-    --glass-modal-bg: rgba(255, 255, 255, 0.98);
-    --modal-overlay: rgba(15, 23, 42, 0.6); /* Darkened overlay for pop */
+    /* ============================================
+       BREAKTHROUGH MODERN LIGHT BACKGROUND (2026)
+       This is the main character now.
 
-    --accent-primary: #0284c7; /* Sky 600 */
-    --accent-glow: rgba(2, 132, 199, 0.25);
+       Rich, soft, living animated gradient mesh + drifting pastel orbs.
+       Not flat. Not "slightly off white". 
+       Elegant, inspiring, calm — perfect for an AI prompt tool.
+       The glass panel will be translucent so this beauty shows through.
+       ============================================ */
 
-    --text-main: #1e293b; /* Slate 800 */
-    --text-muted: #64748b; /* Slate 500 */
-    --text-hint: #0891b2; /* Cyan 600 - Darker for visibility */
-    
-    /* Inverted Star Color: Deep Slate/Black for high contrast */
-    --star-color: #0f172a; 
-    
-    --mic-bg: #ffffff;
-    --mic-border: rgba(148, 163, 184, 0.4);
-    --mic-icon: #334155;
+    --bg-color: #f6f5f2;
+    --bg-gradient: 
+      radial-gradient(115% 70% at 12% 18%, #c5e8f8 0%, transparent 52%),
+      radial-gradient(95% 60% at 82% 22%, #e2d9f7 0%, transparent 48%),
+      radial-gradient(85% 55% at 48% 88%, #c8f0e9 0%, transparent 50%),
+      linear-gradient(175deg, #f6f5f2 0%, #eeede9 100%);
 
-    /* Light Mode History Item */
-    --history-item-bg: #ffffff;
-    --history-item-hover: #f1f5f9;
-    --history-border: #e2e8f0;
-    --history-text: #334155;
+    /* Light glass — properly translucent + frosted so the animated background is visible and beautiful */
+    --glass-border: rgba(15, 23, 42, 0.09);
+    --glass-surface: rgba(255, 255, 255, 0.68);
+    --glass-surface-hover: rgba(255, 255, 255, 0.82);
+    --glass-highlight: rgba(241, 245, 249, 0.5);
+    --glass-input-bg: rgba(255, 255, 255, 0.82);
+    --glass-input-focus: rgba(255, 255, 255, 0.94);
 
-    /* Badge Light Mode */
-    --badge-bg: #cffafe; /* Cyan 100 */
-    --badge-text: #0e7490; /* Cyan 700 */
-    --badge-border: #67e8f9; /* Cyan 300 */
+    /* Modals keep a strong frosted glass on top of the living bg */
+    --glass-modal-bg: rgba(255, 255, 255, 0.82);
+    --modal-overlay: rgba(15, 23, 42, 0.28);
+
+    /* Accent stays nice and clean */
+    --accent-primary: #0ea5e9;
+    --accent-glow: rgba(14, 165, 233, 0.16);
+
+    --text-main: #171717;
+    --text-muted: #6b7280;
+    --text-hint: #0369a1;
+
+    --star-color: #cbd5e1;
+
+    --mic-bg: rgba(255,255,255,0.9);
+    --mic-border: rgba(148, 163, 184, 0.35);
+    --mic-icon: #374151;
+
+    --history-item-bg: rgba(255, 255, 255, 0.75);
+    --history-item-hover: rgba(255, 255, 255, 0.92);
+    --history-border: rgba(15, 23, 42, 0.06);
+    --history-text: #171717;
+
+    --badge-bg: #e0f2fe;
+    --badge-text: #0369a1;
+    --badge-border: #bae6fd;
 }
 
 /* Global Transition */
@@ -102,6 +127,63 @@ body {
     min-height: 100vh;
     position: relative;
     z-index: 0;
+}
+
+/* ============================================
+   DARK MODE — Enhanced living animated background (matching the light mode breakthrough feel)
+   Rich, subtle cosmic mesh with slow drifting nebulae and energy.
+   Keeps the original dark cosmic personality but adds the same "alive / premium" animated quality the user liked in light.
+   ============================================ */
+
+/* Dark gets its own rich animated mesh on top of the base gradient */
+body:not(.light-theme) {
+    background: 
+      var(--bg-gradient),
+      /* Slow drifting deep cosmic color fields */
+      radial-gradient(90% 65% at 20% 30%, rgba(30, 27, 75, 0.45) 0%, transparent 60%),
+      radial-gradient(80% 55% at 75% 25%, rgba(15, 23, 42, 0.35) 0%, transparent 55%),
+      radial-gradient(70% 60% at 55% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 50%);
+    background-size: cover, 125% 125%, 115% 115%, 110% 110%;
+    animation: dark-cosmic-drift 65s ease-in-out infinite;
+}
+
+@keyframes dark-cosmic-drift {
+    0%   { background-position: 0% 0%,   5% 12%,  92% 18%, 48% 75%; }
+    45%  { background-position: 3% 4%,  18%  6%,  78% 25%, 62% 68%; }
+    80%  { background-position: 1% 7%,   8% 15%,  95% 10%, 35% 85%; }
+    100% { background-position: 0% 0%,   5% 12%,  92% 18%, 48% 75%; }
+}
+
+/* Make the aurora layer in dark carry beautiful slow-moving cosmic energy orbs + shimmer (parallel to light's animated mesh) */
+body:not(.light-theme) .aurora-bg {
+    background: 
+      /* Deep drifting nebulae / energy fields in indigo, violet, subtle cyan */
+      radial-gradient(85% 60% at 22% 28%, rgba(103, 232, 249, 0.12) 0%, transparent 55%),
+      radial-gradient(75% 50% at 72% 20%, rgba(167, 139, 250, 0.10) 0%, transparent 50%),
+      radial-gradient(70% 55% at 48% 78%, rgba(103, 232, 249, 0.07) 0%, transparent 52%),
+      /* Fine cosmic dust / noise for texture (original noise kept subtle) */
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-size: 130% 130%, 120% 120%, 115% 115%, 240px 240px;
+    animation: 
+      dark-nebula-flow 48s ease-in-out infinite,
+      dark-energy-shimmer 36s linear infinite;
+    opacity: 0.9;
+    mix-blend-mode: screen;
+    pointer-events: none;
+}
+
+@keyframes dark-nebula-flow {
+    0%   { background-position:  8% 15%,  88% 14%,  45% 78%,   0 0; }
+    42%  { background-position: 22%  7%,  65% 28%,  68% 65%, -25px 15px; }
+    75%  { background-position: 12% 20%,  95%  6%,  32% 85%,  12px -18px; }
+    100% { background-position:  8% 15%,  88% 14%,  45% 78%,   0 0; }
+}
+
+@keyframes dark-energy-shimmer {
+    /* Very slow, subtle cosmic breathing / energy pulse — elegant and not distracting */
+    0%   { filter: brightness(1.0) saturate(1.0); }
+    50%  { filter: brightness(1.06) saturate(1.12); }
+    100% { filter: brightness(1.0) saturate(1.0); }
 }
 
 /* --- Ambient Background --- */
@@ -639,4 +721,441 @@ body.light-theme .quick-action-chip:hover {
 #use-as-input-btn:hover {
     background: rgba(255,255,255,0.12);
     color: white;
+}
+
+/* ============================================
+   MODERN BREAKTHROUGH LIGHT BACKGROUND + GLASS (new architecture)
+   Rich animated gradient is now the star.
+   The main panel uses elegant light glassmorphism so the living background shines through.
+   ============================================ */
+
+/* The page itself now has the beautiful animated gradient as its soul */
+body.light-theme {
+    background: var(--bg-gradient);
+    background-size: 130% 130%, 125% 125%, 120% 120%, cover;
+    animation: light-bg-drift 55s ease-in-out infinite;
+}
+
+/* Slow elegant breathing + drifting of the soft mesh gradient */
+@keyframes light-bg-drift {
+    0%   { background-position: 0% 0%; }
+    50%  { background-position: 8% 6%; }
+    100% { background-position: 0% 0%; }
+}
+
+/* Aurora element becomes the carrier of the premium animated light field */
+body.light-theme .aurora-bg {
+    background: 
+      /* Large soft drifting orbs in elegant pastels (the modern mesh look) */
+      radial-gradient(70% 55% at 18% 25%, rgba(186, 230, 253, 0.55) 0%, transparent 60%),
+      radial-gradient(65% 48% at 78% 18%, rgba(221, 214, 254, 0.48) 0%, transparent 55%),
+      radial-gradient(60% 52% at 52% 82%, rgba(204, 251, 241, 0.42) 0%, transparent 58%),
+      /* Very fine moving texture for premium tactile feel */
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    background-size: 140% 140%, 130% 130%, 125% 125%, 220px 220px;
+    animation: 
+      light-aurora-flow 42s ease-in-out infinite,
+      light-aurora-shimmer 38s linear infinite;
+    opacity: 0.95;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    /* Very subtle iridescent life */
+    filter: saturate(1.08);
+}
+
+@keyframes light-aurora-flow {
+    /* Slow, elegant, premium drifting of the soft pastel orbs + noise texture */
+    0%   { background-position:  5% 15%,  88% 12%,  42% 82%,   0px   0px; }
+    40%  { background-position: 18%  8%,  72% 28%,  62% 68%, -28px  18px; }
+    70%  { background-position: 12% 22%,  95%  8%,  35% 88%,  15px -12px; }
+    100% { background-position:  5% 15%,  88% 12%,  42% 82%,   0px   0px; }
+}
+
+@keyframes light-aurora-shimmer {
+    /* Very slow living light / iridescent pulse — modern breakthrough touch */
+    0%   { filter: saturate(1.08) brightness(1.0); }
+    50%  { filter: saturate(1.18) brightness(1.035); }
+    100% { filter: saturate(1.08) brightness(1.0); }
+}
+
+/* Main glass panel in light = elegant frosted glass floating on the living background */
+body.light-theme .glass-panel {
+    background: var(--glass-surface);
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+        0 10px 40px -10px rgba(15, 23, 42, 0.08),
+        0 2px 8px -2px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(22px) saturate(120%);
+    -webkit-backdrop-filter: blur(22px) saturate(120%);
+}
+
+/* Make sure the beautiful background is visible through the main container */
+body.light-theme .glass-panel > .flex-1 {
+    background: rgba(255,255,255,0.35);
+}
+
+body.light-theme .glass-modal {
+    background: var(--glass-modal-bg);
+    backdrop-filter: blur(28px) saturate(130%);
+    -webkit-backdrop-filter: blur(28px) saturate(130%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 25px 70px -15px rgba(15, 23, 42, 0.12);
+}
+
+/* Crisp but still slightly translucent inputs so the magic bg can peek */
+body.light-theme .glass-input {
+    background: var(--glass-input-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.025);
+}
+
+body.light-theme .glass-input:focus {
+    background: var(--glass-input-focus);
+    border-color: var(--accent-primary);
+    box-shadow: 
+        inset 0 1px 2px rgba(0,0,0,0.025),
+        0 0 0 3px var(--accent-glow);
+}
+
+/* Calm the cosmic background effects in light mode */
+body.light-theme .aurora-bg {
+    opacity: 0.12;
+}
+
+body.light-theme .star {
+    opacity: 0.08; /* very subtle stars on light */
+}
+
+body.light-theme .comet {
+    opacity: 0.35;
+}
+
+/* Softer magic button in light (less aggressive than the dark purple/blue) */
+body.light-theme .btn-magic {
+    background: linear-gradient(90deg, #0ea5e9, #6366f1, #0ea5e9);
+    box-shadow: 0 8px 25px -6px rgba(14, 165, 233, 0.25);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+body.light-theme .btn-magic:hover {
+    box-shadow: 0 12px 32px -6px rgba(99, 102, 241, 0.28);
+}
+
+/* Loader overlay is friendlier in light */
+body.light-theme #loader-overlay {
+    background: rgba(248, 250, 252, 0.78);
+    backdrop-filter: blur(10px);
+}
+
+body.light-theme #loader-text {
+    color: #0f172a;
+}
+
+/* ============================================
+   LIGHT MODE — SOLID ELEVATED SURFACE ARCHITECTURE (modern 2026)
+   
+   Main principle: stop forcing translucent glass on bright backgrounds.
+   Use solid, elevated white surfaces + soft shadows for depth (the pattern used by
+   the best current light-mode AI and productivity interfaces).
+   Backdrop blur is kept only for true overlays.
+   Cosmic effects are suppressed — they belong to the dark theme.
+   ============================================ */
+
+/* The big main frame (glass-panel) — now has a very subtle top-to-bottom micro-gradient.
+   This prevents the "plain flat white rectangle" feeling while staying calm and highly readable.
+   The gradient is extremely gentle so it feels like premium paper or a soft floating window. */
+body.light-theme .glass-panel {
+    /* Elegant modern light glass — translucent + heavily frosted so the rich animated gradient background is visible and feels breakthrough */
+    background: var(--glass-surface);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+        0 10px 35px -8px rgba(15, 23, 42, 0.07),
+        0 2px 6px -1px rgba(15, 23, 42, 0.04);
+    backdrop-filter: blur(26px) saturate(128%);
+    -webkit-backdrop-filter: blur(26px) saturate(128%);
+}
+
+/* Subtle top highlight on the main frame for that extra "crafted" premium feel */
+body.light-theme .glass-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.8), transparent);
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Sidebar / left control area — clearly different soft surface (this is the biggest thing that stops "complete white" feeling) */
+body.light-theme .glass-panel .bg-black\/5 {
+    background: linear-gradient(180deg, #f1f3f5 0%, #e8eaed 100%);
+    border-right: 1px solid #e5e7eb;
+}
+
+/* Inputs & text areas — crisp and material */
+body.light-theme .glass-input {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .glass-input:focus {
+    background: #ffffff;
+    border-color: #0ea5e9;
+    box-shadow:
+        inset 0 1px 1px rgba(0, 0, 0, 0.02),
+        0 0 0 3px rgba(14, 165, 233, 0.12);
+}
+
+/* Strategy cards — solid cards with clear elevation */
+body.light-theme .strategy-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .strategy-card:hover {
+    background: #fafaf9;
+    box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+}
+
+body.light-theme .strategy-card.active {
+    background: #ffffff;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 1px #0ea5e9, 0 4px 12px -2px rgba(14, 165, 233, 0.12);
+}
+
+/* Framework mini-buttons */
+body.light-theme #strategy-grid + .mt-6 .strategy-card {
+    background: #fafaf9;
+    border-color: #e5e7eb;
+}
+
+/* Quick Action chips (malleable prompt widgets) */
+body.light-theme .quick-action-chip {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    color: #6b7280;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+body.light-theme .quick-action-chip:hover {
+    background: #fafaf9;
+    border-color: #0ea5e9;
+    color: #171717;
+    box-shadow: 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .quick-action-chip:disabled {
+    background: #f4f4f5;
+    color: #a1a1aa;
+}
+
+/* Use-as-input and Copy buttons */
+body.light-theme #use-as-input-btn,
+body.light-theme #copy-button {
+    background: #fafaf9;
+    border: 1px solid #e5e7eb;
+}
+
+body.light-theme #use-as-input-btn:hover,
+body.light-theme #copy-button:hover {
+    background: #f4f4f5;
+    border-color: #d1d5db;
+}
+
+/* Cosmic / living background — increased a little so you get fine texture and life instead of dead flat white.
+   Still calm — not the strong dark-mode version. */
+body.light-theme .aurora-bg {
+    opacity: 0.09;
+}
+body.light-theme .star {
+    opacity: 0.06;
+}
+body.light-theme .comet {
+    display: none;
+}
+
+/* Magic button — clean gradient for daytime */
+body.light-theme .btn-magic {
+    background: linear-gradient(90deg, #0ea5e9, #6366f1, #0ea5e9);
+    box-shadow: 0 6px 16px -4px rgba(14, 165, 233, 0.22);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+body.light-theme .btn-magic:hover {
+    box-shadow: 0 10px 22px -4px rgba(99, 102, 241, 0.26);
+}
+
+/* Loader overlay — pleasant and calm */
+body.light-theme #loader-overlay {
+    background: rgba(250, 250, 249, 0.82);
+    backdrop-filter: blur(6px);
+}
+
+body.light-theme #loader-text {
+    color: #374151;
+}
+
+body.light-theme .loader-core {
+    background: #111827;
+    box-shadow: 0 0 18px 3px rgba(14, 165, 233, 0.18);
+}
+
+/* Small supporting text */
+body.light-theme #model-hint,
+body.light-theme #quick-action-status {
+    color: #6b7280;
+}
+
+/* Header bar — soft premium treatment with micro-gradient */
+body.light-theme header {
+    background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
+/* ============================================
+   FINAL OVERRIDES — Make the modern animated background actually win in light mode
+   These are placed at the end so they win.
+   ============================================ */
+
+/* Main workspace (input + output area) — semi-transparent so the living animated gradient is visible */
+body.light-theme .glass-panel > .flex-1 {
+    background: rgba(255, 255, 255, 0.28);
+    backdrop-filter: blur(4px);
+}
+
+/* Left sidebar — differentiated but still lets background through */
+body.light-theme .glass-panel .bg-black\/5 {
+    background: rgba(248, 250, 252, 0.45);
+    border-right: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+/* Header becomes a light glass bar so the gradient background can be seen */
+body.light-theme header {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+/* History items — keep them readable but with glass feel */
+body.light-theme .history-item {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.06);
+}
+
+/* Strongly suppress old cosmic effects that fight the new elegant light aesthetic */
+body.light-theme .star {
+    opacity: 0.035;
+}
+body.light-theme .comet {
+    display: none;
+}
+
+/* Give the aurora (now the beautiful animated mesh) a bit more presence */
+body.light-theme .aurora-bg {
+    opacity: 1;
+}
+
+/* ============================================
+   DARK MODE — Subtle interactions + living animations (to match the light mode experience the user liked)
+   The background now has slow drifting nebulae and energy shimmer (see rules above).
+   Here we add the satisfying micro-interactions on clicks/hovers so the whole interface feels responsive and premium in dark too.
+   ============================================ */
+
+/* Let the new animated cosmic background breathe through the glass a little more elegantly */
+body:not(.light-theme) .glass-panel {
+    background: rgba(10, 10, 15, 0.55);
+    backdrop-filter: blur(22px) saturate(115%);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Strategy cards — beautiful subtle press + glow on interaction */
+body:not(.light-theme) .strategy-card {
+    transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                box-shadow 0.2s cubic-bezier(0.23, 1, 0.32, 1),
+                border-color 0.2s ease,
+                background 0.2s ease;
+}
+
+body:not(.light-theme) .strategy-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.4);
+    border-color: rgba(103, 232, 249, 0.2);
+}
+
+body:not(.light-theme) .strategy-card:active {
+    transform: scale(0.985) translateY(-1px);
+    transition-duration: 80ms;
+    box-shadow: 0 4px 15px -6px rgba(6, 182, 212, 0.25);
+}
+
+body:not(.light-theme) .strategy-card.active {
+    box-shadow: 0 0 0 1px var(--accent-primary), 0 8px 25px -8px rgba(6, 182, 212, 0.2);
+}
+
+/* Quick Action chips — same lovely subtle click feedback as light mode */
+body:not(.light-theme) .quick-action-chip {
+    transition: all 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body:not(.light-theme) .quick-action-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+    border-color: rgba(103, 232, 249, 0.25);
+}
+
+body:not(.light-theme) .quick-action-chip:active {
+    transform: scale(0.96);
+    transition-duration: 60ms;
+    background: rgba(6, 182, 212, 0.12);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
+}
+
+/* Magic button already has shimmer — enhance the press feel */
+body:not(.light-theme) .btn-magic:active {
+    transform: scale(0.985);
+    transition-duration: 80ms;
+}
+
+/* General nice press on other action buttons (stop, copy, use-as-input, history items, etc.) */
+body:not(.light-theme) button:active:not(:disabled) {
+    transform: scale(0.985);
+    transition-duration: 70ms;
+}
+
+/* Mic button press feedback (on top of the existing audio visualizer) */
+body:not(.light-theme) .btn-mic:active {
+    transform: scale(0.94);
+    transition-duration: 60ms;
+}
+
+/* History items — subtle lift on hover + nice press */
+body:not(.light-theme) .history-item {
+    transition: transform 0.15s cubic-bezier(0.23, 1, 0.32, 1),
+                box-shadow 0.15s ease,
+                background 0.15s ease;
+}
+
+body:not(.light-theme) .history-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.35);
+}
+
+body:not(.light-theme) .history-item:active {
+    transform: scale(0.985);
+    transition-duration: 60ms;
+}
+
+/* Small polish: when the living dark background is active, the accent glows feel more "in the world" */
+body:not(.light-theme) .strategy-card.active .strategy-icon,
+body:not(.light-theme) .quick-action-chip:active {
+    filter: drop-shadow(0 0 3px var(--accent-primary));
 }
