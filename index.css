@@ -564,3 +564,79 @@ body.light-theme #cancel-apikey-btn {
 body.light-theme #cancel-apikey-btn:hover {
     color: var(--text-main);
 }
+
+/* ============================================
+   Careful 2026 Revamp additions (Prompt Canvas / malleable widgets + calm metrics)
+   These styles are appended and do not alter existing glass, buttons, or animations.
+   ============================================ */
+
+.quick-action-chip {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 6px 13px;
+    border-radius: 9999px;
+    background: var(--glass-highlight);
+    border: 1px solid var(--glass-border);
+    color: var(--text-muted);
+    transition: all 0.2s cubic-bezier(0.23, 1.0, 0.32, 1);
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.quick-action-chip:hover {
+    background: var(--glass-surface-hover);
+    color: var(--text-main);
+    border-color: var(--accent-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(0,0,0,0.15);
+}
+
+.quick-action-chip:active {
+    transform: scale(0.985);
+}
+
+.quick-action-chip:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+body.light-theme .quick-action-chip {
+    background: rgba(255,255,255,0.8);
+    border-color: rgba(0,0,0,0.08);
+    color: #334155;
+}
+body.light-theme .quick-action-chip:hover {
+    background: white;
+    border-color: var(--accent-primary);
+    color: var(--text-main);
+    box-shadow: 0 4px 14px -3px rgba(0,0,0,0.1);
+}
+
+#quick-action-status {
+    font-feature-settings: "tnum";
+}
+
+/* Make quick action status messages more noticeable when they appear (feedback for clicks) */
+#quick-action-status:not(:empty) {
+    opacity: 1;
+    color: var(--text-hint);
+}
+
+#input-chars, #input-words, #input-tokens,
+#output-chars, #output-tokens {
+    font-feature-settings: "tnum";
+    color: var(--text-muted);
+}
+
+/* Subtle model capability hint */
+#model-hint {
+    font-feature-settings: "tnum";
+}
+
+/* Use as input button gets same treatment as copy */
+#use-as-input-btn:hover {
+    background: rgba(255,255,255,0.12);
+    color: white;
+}

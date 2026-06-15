@@ -35,9 +35,22 @@ const transcriptionBadge = document.getElementById('transcription-badge') as HTM
 
 // Config Elements
 const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+const modelHint = document.getElementById('model-hint') as HTMLDivElement;
 const toneSelect = document.getElementById('tone-select') as HTMLSelectElement;
 const toneSection = document.getElementById('tone-section') as HTMLDivElement;
 const strategyDesc = document.getElementById('strategy-desc') as HTMLSpanElement;
+
+// New careful-revamp elements (added without touching Live voice code)
+const quickActionsContainer = document.getElementById('quick-actions') as HTMLDivElement;
+const quickActionStatus = document.getElementById('quick-action-status') as HTMLDivElement;
+const useAsInputBtn = document.getElementById('use-as-input-btn') as HTMLButtonElement;
+
+// Live metrics
+const inputChars = document.getElementById('input-chars') as HTMLSpanElement;
+const inputWords = document.getElementById('input-words') as HTMLSpanElement;
+const inputTokens = document.getElementById('input-tokens') as HTMLSpanElement;
+const outputCharsEl = document.getElementById('output-chars') as HTMLSpanElement;
+const outputTokensEl = document.getElementById('output-tokens') as HTMLSpanElement;
 
 // History Elements
 const historyButton = document.getElementById('history-button') as HTMLButtonElement;
@@ -105,6 +118,15 @@ const initAIClient = (key: string) => {
         populateModels();
         apikeyModal.classList.add('hidden');
         optimizeButton.disabled = false;
+
+        // Now that we have a working client, enable the Quick Actions (malleable prompt widgets)
+        // and let "Use as input" be controlled by whether there's currently an output.
+        if (quickActionsContainer) {
+            quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = false);
+        }
+        if (useAsInputBtn) {
+            useAsInputBtn.disabled = !outputPrompt || !outputPrompt.value.trim();
+        }
     } catch (e) {
         console.error(e);
         localStorage.removeItem(API_KEY_STORAGE);
@@ -112,6 +134,12 @@ const initAIClient = (key: string) => {
         cancelApikeyBtn.classList.add('hidden');
         apikeyError.textContent = "Stored key was invalid. Please enter a new one.";
         apikeyError.classList.remove('hidden');
+
+        // Keep the prompt tools disabled while we don't have a valid client
+        if (quickActionsContainer) {
+            quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = true);
+        }
+        if (useAsInputBtn) useAsInputBtn.disabled = true;
     }
 };
 
@@ -146,7 +174,7 @@ const validateAndSaveKey = async () => {
         // Use a strict, structured request to validate.
         // We look for any valid response text.
         const response = await tempAI.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.5-flash',
             contents: { parts: [{ text: 'Reply with "ok"' }] }
         });
 
@@ -185,17 +213,30 @@ const validateAndSaveKey = async () => {
 
 const populateModels = () => {
     modelSelect.innerHTML = '';
+    // Updated to current recommended Gemini models (June 2026).
+    // Voice / Live transcription continues to use its own proven working model string below.
     const models = [
-        { value: 'gemini-3-flash-preview', text: 'Gemini 3 Flash' },
-        { value: 'gemini-flash-lite-latest', text: 'Gemini 2.5 Flash Lite' },
-        { value: 'gemini-3.1-pro-preview', text: 'Gemini 3.1 Pro' },
+        { value: 'gemini-3.5-flash', text: 'Gemini 3.5 Flash', hint: 'Fast • Excellent quality' },
+        { value: 'gemini-2.5-pro', text: 'Gemini 2.5 Pro', hint: 'Best reasoning & depth' },
+        { value: 'gemini-2.5-flash', text: 'Gemini 2.5 Flash', hint: 'Balanced speed & power' },
+        { value: 'gemini-3.1-flash-lite', text: 'Gemini 3.1 Flash Lite', hint: 'Ultra fast & efficient' },
     ];
     models.forEach(m => {
         const opt = document.createElement('option');
         opt.value = m.value;
         opt.textContent = m.text;
+        if (m.hint) opt.dataset.hint = m.hint;
         modelSelect.appendChild(opt);
     });
+    syncModelHint();
+    modelSelect.addEventListener('change', syncModelHint);
+};
+
+const syncModelHint = () => {
+    if (!modelHint || !modelSelect) return;
+    const selected = modelSelect.selectedOptions[0];
+    modelHint.textContent = selected?.dataset.hint || '';
+    modelHint.style.opacity = selected?.dataset.hint ? '0.85' : '0.4';
 };
 
 // --- Theme Logic ---
@@ -471,6 +512,8 @@ const optimizePrompt = async () => {
 
         if (!isCancelled) {
             outputPrompt.value = response.text || "No response generated.";
+            updateOutputMetrics();
+            if (useAsInputBtn) useAsInputBtn.disabled = false;
         } else {
             outputPrompt.value = "Stopped.";
         }
@@ -498,12 +541,15 @@ const setLoading = (loading: boolean) => {
         optimizeButton.classList.add('hidden');
         stopButton.classList.remove('hidden');
         inputPrompt.disabled = true;
+        if (useAsInputBtn) useAsInputBtn.disabled = true;
     } else {
         loaderOverlay.classList.add('hidden');
         optimizeButton.classList.remove('hidden');
         stopButton.classList.add('hidden');
         inputPrompt.disabled = false;
         copyButton.disabled = false;
+        if (useAsInputBtn) useAsInputBtn.disabled = !outputPrompt || !outputPrompt.value.trim();
+        updateOutputMetrics();
     }
 };
 
@@ -592,7 +638,7 @@ const performPolish = async (isIntermediate = false) => {
     
     try {
         const polishResponse = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.5-flash',
             contents: currentTranscript,
             config: {
                 systemInstruction: `You are a translator and grammar expert. The user has just dictated a prompt via voice. 
@@ -607,6 +653,7 @@ const performPolish = async (isIntermediate = false) => {
         // Update input only if we have a valid response
         if(polishResponse.text) {
              inputPrompt.value = polishResponse.text.trim();
+             updateInputMetrics();
              // Mark this content as polished so we don't redo it immediately
              lastPolishedTranscript = currentTranscript;
         }
@@ -732,6 +779,9 @@ const updateMicUI = (active: boolean) => {
         stopMicIcon.classList.remove('hidden');
         micButton.classList.add('mic-visualizer-active');
         transcriptionBadge.classList.remove('hidden');
+        // Disable new prompt-editing controls while recording (safe addition)
+        if (quickActionsContainer) quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = true);
+        if (useAsInputBtn) useAsInputBtn.disabled = true;
     } else {
         micIcon.classList.remove('hidden');
         stopMicIcon.classList.add('hidden');
@@ -740,8 +790,153 @@ const updateMicUI = (active: boolean) => {
         if(!isRecording && accumulatedTranscript.length < 5) {
              transcriptionBadge.classList.add('hidden');
         }
+        // Re-enable new controls when not recording
+        if (quickActionsContainer) quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = false);
+        if (useAsInputBtn) useAsInputBtn.disabled = !outputPrompt || !outputPrompt.value.trim();
     }
 };
+
+// --- Careful 2026 Revamp: Prompt metrics + Malleable Quick Actions ---
+// These features were added on top of the proven voice code without modifying startRecording / stopRecording / live callbacks.
+
+const QUICK_TWEAKS: Record<string, { label: string; instruction: string }> = {
+    concise: { label: 'More concise', instruction: 'Rewrite the prompt to be significantly more concise while preserving every critical detail and intent. Remove fluff.' },
+    specific: { label: 'Add specificity', instruction: 'Make the prompt dramatically more specific: add concrete constraints, success criteria, edge cases, and desired output characteristics.' },
+    cot: { label: 'Add chain-of-thought', instruction: 'Augment the prompt so the target model must think step-by-step, show explicit reasoning, and only then give the final answer. Keep the original goal intact.' },
+    schema: { label: 'Add output schema', instruction: 'Add a clear, structured output format requirement (JSON, markdown table, or numbered steps) that matches the apparent goal of the prompt.' },
+    expert: { label: 'Expert persona', instruction: 'Inject a world-class expert persona and domain authority into the prompt. The model should act as the leading specialist in the relevant field.' },
+    examples: { label: 'Add examples', instruction: 'Enhance the prompt with 1-3 high-quality, relevant few-shot examples that illustrate exactly the desired behavior and output style.' },
+};
+
+function updateInputMetrics() {
+    if (!inputChars || !inputPrompt) return;
+    const val = inputPrompt.value || '';
+    const chars = val.length;
+    const words = val.trim() ? val.trim().split(/\s+/).length : 0;
+    const tokens = Math.max(1, Math.round(chars / 3.8));
+    inputChars.textContent = chars.toLocaleString();
+    if (inputWords) inputWords.textContent = words.toLocaleString();
+    if (inputTokens) inputTokens.textContent = tokens.toLocaleString();
+}
+
+function updateOutputMetrics() {
+    if (!outputCharsEl || !outputPrompt) return;
+    const val = outputPrompt.value || '';
+    const chars = val.length;
+    const tokens = Math.max(1, Math.round(chars / 3.8));
+    outputCharsEl.textContent = chars.toLocaleString();
+    if (outputTokensEl) outputTokensEl.textContent = tokens.toLocaleString();
+}
+
+async function applyQuickTweak(tweakKey: string) {
+    // Give clear visible feedback instead of silent return — this was the main cause of "click does nothing".
+    if (!ai) {
+        if (quickActionStatus) {
+            quickActionStatus.textContent = 'Enter your API key first';
+            setTimeout(() => { if (quickActionStatus) quickActionStatus.textContent = ''; }, 1600);
+        }
+        return;
+    }
+    if (!inputPrompt || !inputPrompt.value.trim()) {
+        if (quickActionStatus) {
+            quickActionStatus.textContent = 'Type a prompt in the box first';
+            setTimeout(() => { if (quickActionStatus) quickActionStatus.textContent = ''; }, 1600);
+        }
+        return;
+    }
+    if (isRecording) return;
+
+    const tweak = QUICK_TWEAKS[tweakKey];
+    if (!tweak || !quickActionStatus) return;
+
+    const original = inputPrompt.value;
+    quickActionStatus.textContent = `Applying: ${tweak.label.toLowerCase()}…`;
+
+    // Temporarily disable chips
+    if (quickActionsContainer) {
+        quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = true);
+    }
+
+    try {
+        const chosenModel = modelSelect?.value || 'gemini-3.5-flash';
+        const res = await ai.models.generateContent({
+            model: chosenModel,
+            contents: original,
+            config: {
+                systemInstruction: `You are an expert prompt engineer. ${tweak.instruction}\n\nReturn ONLY the rewritten prompt text. Do not add commentary, quotes, or explanations.`,
+            }
+        });
+
+        if (res.text) {
+            inputPrompt.value = res.text.trim();
+            updateInputMetrics();
+            if (quickActionStatus) {
+                quickActionStatus.textContent = 'Done — prompt updated';
+                setTimeout(() => {
+                    if (quickActionStatus && quickActionStatus.textContent.includes('Done')) {
+                        quickActionStatus.textContent = '';
+                    }
+                }, 1400);
+            }
+        } else {
+            // Rare: model returned no text
+            if (quickActionStatus) quickActionStatus.textContent = 'No change from model';
+            setTimeout(() => { if (quickActionStatus) quickActionStatus.textContent = ''; }, 1400);
+        }
+    } catch (e) {
+        console.warn('Quick tweak failed', e);
+        if (quickActionStatus) {
+            quickActionStatus.textContent = 'Tweak failed — check console or try a different model';
+            setTimeout(() => { if (quickActionStatus) quickActionStatus.textContent = ''; }, 2200);
+        }
+    } finally {
+        if (quickActionsContainer) {
+            quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = false);
+        }
+    }
+}
+
+// Wire quick actions (delegated, safe)
+if (quickActionsContainer) {
+    quickActionsContainer.addEventListener('click', (e) => {
+        const btn = (e.target as HTMLElement).closest('button[data-tweak]') as HTMLButtonElement | null;
+        if (btn && btn.dataset.tweak) {
+            applyQuickTweak(btn.dataset.tweak);
+        }
+    });
+
+    // Start with the prompt tools disabled. They only become usable once we have a valid AI client.
+    // This prevents mysterious "click does nothing" before the user has entered/saved their key.
+    quickActionsContainer.querySelectorAll('button').forEach((b: any) => b.disabled = true);
+}
+
+// Use optimized result back into input for iteration (core prompt-craft loop)
+if (useAsInputBtn) {
+    useAsInputBtn.addEventListener('click', () => {
+        if (!outputPrompt || !outputPrompt.value.trim() || isRecording) return;
+        inputPrompt.value = outputPrompt.value;
+        updateInputMetrics();
+        inputPrompt.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        inputPrompt.focus();
+        // subtle flash
+        inputPrompt.classList.add('!border-cyan-400/60');
+        setTimeout(() => inputPrompt.classList.remove('!border-cyan-400/60'), 900);
+    });
+}
+
+// Live metrics while typing
+if (inputPrompt) {
+    inputPrompt.addEventListener('input', updateInputMetrics);
+}
+if (outputPrompt) {
+    outputPrompt.addEventListener('input', updateOutputMetrics);
+}
+
+// Initialize metrics shortly after boot
+setTimeout(() => {
+    updateInputMetrics();
+    updateOutputMetrics();
+}, 80);
 
 // --- History Logic ---
 const loadHistory = () => {
@@ -771,6 +966,7 @@ const renderHistory = () => {
         
         div.onclick = () => {
             inputPrompt.value = item;
+            updateInputMetrics();
             historyModal.classList.add('hidden');
         };
         historyContent.appendChild(div);
